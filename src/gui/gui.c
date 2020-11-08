@@ -103,13 +103,13 @@ void init_gui()
 
     if (gui_init_console() < 0)
         panic("init gui console failed!\n");
-
+    
     if (gui_init_layer() < 0)
         panic("init gui layer failed!\n");
-
-    /* 启动gui线程 */
-    if (kthread_start("kgui", TASK_PRIO_RT, kgui_thread, NULL) == NULL)
+    
+    if (kern_thread_start("kgui", TASK_PRIO_LEVEL_NORMAL, kgui_thread, NULL) == NULL)
         panic("start kgui thread failed!\n");
+    
     #endif
     
 }
@@ -123,7 +123,7 @@ int gui_user_init(task_t *task)
 
 int sys_g_init(void)
 {
-    task_t *cur = current_task;
+    task_t *cur = task_current;
     return gui_user_init(cur);
 }
 
@@ -170,7 +170,7 @@ int gui_user_exit(task_t *task)
 
 int sys_g_quit(void)
 {
-    task_t *cur = current_task;
+    task_t *cur = task_current;
     int ret = gui_user_exit(cur);
     return ret;
 }

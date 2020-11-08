@@ -2,8 +2,7 @@
 #include <stdio.h>
 #include <xbook/driver.h>
 #include <sys/ioctl.h>
-#include <xbook/kmalloc.h>
-#include <xbook/vmarea.h>
+#include <xbook/memalloc.h>
 
 /// 程序本地头文件
 #include <gui/mouse.h>

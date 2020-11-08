@@ -32,7 +32,6 @@ int main(int argc, char *argv[])
         g_quit();
         return -1;
     }
-
 #ifdef DESKTOP_LAUNCH_BOSH
     desktop_launch_app("/usr/bosh");
 #endif

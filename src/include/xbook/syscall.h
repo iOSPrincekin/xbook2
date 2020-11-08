@@ -1,12 +1,6 @@
 #ifndef _XBOOK_SYSCALL_H
 #define _XBOOK_SYSCALL_H
 
-/*
-系统调用的作用是，用户可以通过内核暴露的系统调用
-来执行内核提供的部分操作。
-对于元内核，至少需要为用户提供进程，内存管理，进程间通信，时间管理，设备管理
-相应的系统调用接口。
-*/
 typedef void * syscall_t;
 
 enum syscall_num {
@@ -33,10 +27,10 @@ enum syscall_num {
     SYS_THREAD_CANCELSTATE,
     SYS_THREAD_CANCELTYPE,
     SYS_SCHED_YEILD,
-    SYS_WAITQUE_CREATE,
-    SYS_WAITQUE_DESTROY,
-    SYS_WAITQUE_WAIT,
-    SYS_WAITQUE_WAKE,
+    SYS_MUTEX_QUEUE_CREATE,
+    SYS_MUTEX_QUEUE_DESTROY,
+    SYS_MUTEX_QUEUE_WAIT,
+    SYS_MUTEX_QUEUE_WAKE,
     SYS_PROC_RESERVED = 30,             /* 预留30个接口给进程管理 */
     SYS_HEAP,
     SYS_MUNMAP,
@@ -51,7 +45,7 @@ enum syscall_num {
     
     SYS_RES_RESERVED = 50,              /* 预留10个接口给资源管理 */
     SYS_ALARM,
-    SYS_KTIME,
+    SYS_WALLTIME,
     SYS_GETTICKS,
     SYS_GETTIMEOFDAY,
     SYS_CLOCK_GETTIME,
@@ -174,6 +168,6 @@ enum syscall_num {
 SYS_WAITPID，SYS_SLEEP，SYS_THREAD_JOIN，SYS_GETRES, SYS_PUTRES, SYS_READRES, 
 SYS_WRITERES */
 
-void init_syscall();
+void syscall_init();
 
 #endif   /*_XBOOK_SYSCALL_H*/

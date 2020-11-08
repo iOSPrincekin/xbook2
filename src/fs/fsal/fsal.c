@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 
-#include <xbook/kmalloc.h>
+#include <xbook/memalloc.h>
 #include <xbook/debug.h>
 #include <xbook/fs.h>
 #include <xbook/schedule.h>
@@ -27,7 +27,7 @@ fsal_file_t *fsal_file_table;
  */
 int init_fsal_file_table()
 {
-    fsal_file_table = kmalloc(FSAL_FILE_OPEN_NR * sizeof(fsal_file_t));
+    fsal_file_table = mem_alloc(FSAL_FILE_OPEN_NR * sizeof(fsal_file_t));
     if (fsal_file_table == NULL) 
         return -1;
     memset(fsal_file_table, 0, FSAL_FILE_OPEN_NR * sizeof(fsal_file_t));
@@ -115,7 +115,7 @@ int init_disk_mount()
             #endif
             continue;
         }
-        printk("[fsal] : mount device %s success!\n", name);
+        printk("[fsal] : mount device %s to path %s success.\n", name, ROOT_DIR_PATH);
         break;  // 成功挂载
     }
     if (i >= 4) {
@@ -155,7 +155,7 @@ int init_fsal()
 
 int fs_fd_init(task_t *task)
 {
-    task->fileman = kmalloc(sizeof(file_man_t));
+    task->fileman = mem_alloc(sizeof(file_man_t));
     if (task->fileman == NULL) {
         return -1;
     }
@@ -180,7 +180,7 @@ int fs_fd_exit(task_t *task)
     for (i = 0; i < LOCAL_FILE_OPEN_NR; i++)
         fsif_degrow(i);
     
-    kfree(task->fileman);
+    mem_free(task->fileman);
     task->fileman = NULL;
     return 0;
 }
@@ -239,7 +239,7 @@ int fs_fd_reinit(task_t *cur)
 
 int fd_alloc()
 {
-    task_t *cur = current_task;
+    task_t *cur = task_current;
     int i;
     for (i = 0; i < LOCAL_FILE_OPEN_NR; i++) {
         if (cur->fileman->fds[i].flags == 0) {
@@ -255,7 +255,7 @@ int fd_alloc()
 
 int fd_free(int fd)
 {
-    task_t *cur = current_task;
+    task_t *cur = task_current;
     if (OUT_RANGE(fd, 0, LOCAL_FILE_OPEN_NR))
         return -1;
     if (cur->fileman->fds[fd].flags == 0) {
@@ -281,7 +281,7 @@ int local_fd_install(int resid, unsigned int flags)
     int fd = fd_alloc();
     if (fd < 0)
         return -1;
-    task_t *cur = current_task;
+    task_t *cur = task_current;
     cur->fileman->fds[fd].handle = resid;
     cur->fileman->fds[fd].flags |= flags;
     #ifdef DEBUG_FSAL
@@ -303,7 +303,7 @@ int local_fd_install_to(int resid, int newfd, unsigned int flags)
     if (OUT_RANGE(newfd, 0, LOCAL_FILE_OPEN_NR))
         return -1;
 
-    task_t *cur = current_task;
+    task_t *cur = task_current;
     cur->fileman->fds[newfd].handle = resid;
     cur->fileman->fds[newfd].flags = FILE_FD_ALLOC;
     cur->fileman->fds[newfd].flags |= flags;
@@ -326,13 +326,13 @@ file_fd_t *fd_local_to_file(int local_fd)
     if (OUT_RANGE(local_fd, 0, LOCAL_FILE_OPEN_NR))
         return NULL;
 
-    task_t *cur = current_task;
+    task_t *cur = task_current;
     return &cur->fileman->fds[local_fd];
 }
 
 int handle_to_local_fd(int handle, unsigned int flags)
 {
-    task_t *cur = current_task;
+    task_t *cur = task_current;
     file_fd_t *fdptr;
     int i;
     for (i = 0; i < LOCAL_FILE_OPEN_NR; i++) {

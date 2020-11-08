@@ -56,7 +56,7 @@
 
 #include <xbook/task.h>
 #include <xbook/semaphore.h>
-#include <xbook/ktime.h>
+#include <sys/time.h>
 #include <xbook/mutexlock.h>
 
 #if 0
@@ -113,12 +113,12 @@ static void sys_sem_free_internal(struct sys_sem *sem);
 
 static void *__malloc(size_t size)
 {
-    return kmalloc(size);
+    return mem_alloc(size);
 }
 
 static void __free(void *ptr)
 {
-    kfree(ptr);
+    mem_free(ptr);
 }
 
 /*-----------------------------------------------------------------------------------*/
@@ -149,17 +149,16 @@ sys_thread_new(const char *name, lwip_thread_fn function, void *arg, int stacksi
   LWIP_UNUSED_ARG(stacksize);
   //LWIP_UNUSED_ARG(prio);
   
-  thread = kthread_start((char *)name, prio, function, arg);
+  thread = kern_thread_start((char *)name, prio, function, arg);
 
   if (NULL != thread) {
-    task_set_timeslice(thread, 1);
     st = introduce_thread(thread);
   }
   #ifdef DEBUG_LWIP_ARCH
   printk("%s: thread %x\n", __func__, thread);
   #endif
   if (NULL == st) {
-    LWIP_DEBUGF(SYS_DEBUG, ("sys_thread_new: kthread_start %x, st = 0x%lx",
+    LWIP_DEBUGF(SYS_DEBUG, ("sys_thread_new: kern_thread_start %x, st = 0x%lx",
                        thread, (unsigned long)st));
     abort();
   }

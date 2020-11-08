@@ -137,12 +137,12 @@ int sys_write(int fd, void *buffer, size_t nbytes)
         retval = fsif.write(ffd->handle, buffer, nbytes);
     } else if (ffd->flags & FILE_FD_SOCKET) {
         /* 由于lwip_write实现原因，需要内核缓冲区中转 */
-        void *tmpbuffer = kmalloc(nbytes);
+        void *tmpbuffer = mem_alloc(nbytes);
         if (tmpbuffer == NULL)
             return -1;
         memcpy(tmpbuffer, buffer, nbytes);
         retval = lwip_write(ffd->handle, tmpbuffer, nbytes);  
-        kfree(tmpbuffer);
+        mem_free(tmpbuffer);
     } else if (ffd->flags & FILE_FD_DEVICE) {
         retval = device_write(ffd->handle, buffer, nbytes, ffd->offset);  
         if (retval > 0)
@@ -298,7 +298,7 @@ int sys_rename(const char *source, const char *target)
 
 int sys_chdir(const char *path)
 {
-    task_t *cur = current_task;
+    task_t *cur = task_current;
     if (!cur->fileman)
         return -1;
     
@@ -319,7 +319,7 @@ int sys_chdir(const char *path)
 
 int sys_getcwd(char *buf, int bufsz)
 {
-    task_t *cur = current_task;
+    task_t *cur = task_current;
     if (!cur->fileman)
         return -1;
     memcpy(buf, cur->fileman->cwd, min(bufsz, MAX_PATH));

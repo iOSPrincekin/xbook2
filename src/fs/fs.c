@@ -24,15 +24,15 @@ int init_fs()
     }
     printk("[fs]: init done.\n");
     
-    // open sbin/init
+    // open sbin/desktop
 #if 0
-    int fd = sys_open("/sbin/init", O_RDONLY);
+    int fd = sys_open("/sbin/desktop", O_RDONLY);
     if (fd < 0) {
         printk("open fd failed!\n");
         return -1;
     }
-    uint32_t *buf = kmalloc(1024 * 50);
-    size_t need = 32 * KB;
+    uint32_t *buf = mem_alloc(PAGE_SIZE * 100);
+    size_t need = PAGE_SIZE * 100;
     sys_lseek(fd, 0, SEEK_SET);
     int rd = sys_read(fd, buf, need);
     printk("need: %d, read: %d\n", need, rd);

@@ -18,7 +18,7 @@ int sys_new_layer(int x, int y, uint32_t width, uint32_t height)
     }
     //layer_draw_rect_fill(l, 0, 0, l->width, l->height, COLOR_WHITE);
     layer_set_xy(l, x, y);
-    l->extension = current_task;
+    l->extension = task_current;
     return l->id;
 }
 
@@ -306,7 +306,7 @@ int sys_gui_get_icon(int lyid, char *path, uint32_t len)
     if (l->ext_buf0 && path) {  /* 扩展缓冲区0 */
         memcpy(path, l->ext_buf0, min(len, MAX_PATH));
         /* 释放缓冲区 */
-        kfree(l->ext_buf0);
+        mem_free(l->ext_buf0);
         l->ext_buf0 = NULL;
         return 0;
     }
@@ -323,7 +323,7 @@ int sys_gui_set_icon(int lyid, char *path, uint32_t len)
     }
     if (l->ext_buf0 || !path || !len)
         return -1;
-    l->ext_buf0 = kmalloc(MAX_PATH);
+    l->ext_buf0 = mem_alloc(MAX_PATH);
     if (l->ext_buf0 == NULL)
         return -1;
     memset(l->ext_buf0, 0, MAX_PATH);

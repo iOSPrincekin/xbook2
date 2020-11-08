@@ -3,7 +3,7 @@
 #include <fsal/dir.h>
 #include "../fatfs/ff.h"
 #include <xbook/diskman.h>
-#include <xbook/kmalloc.h>
+#include <xbook/memalloc.h>
 #include <const.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -111,7 +111,7 @@ static int __mount(char *source, char *target, char *fstype, unsigned long flags
     }
 
     FATFS *fsobj;           /* Filesystem object */
-    fsobj = kmalloc(sizeof(FATFS));
+    fsobj = mem_alloc(sizeof(FATFS));
     if (fsobj == NULL) 
         return -1;
     memset(fsobj, 0, sizeof(FATFS));
@@ -122,7 +122,7 @@ static int __mount(char *source, char *target, char *fstype, unsigned long flags
     fr = f_mount(fsobj, p, delayed);
     if (fr != FR_OK) {
         pr_dbg("%s: %s: mount on path %s failed, code %d!\n", FS_MODEL_NAME, __func__, p, fr);
-        kfree(fsobj);
+        mem_free(fsobj);
         return -1;
     }
     fatfs_extention.fsobj = fsobj;
@@ -131,7 +131,7 @@ static int __mount(char *source, char *target, char *fstype, unsigned long flags
 #endif
     if (fsal_path_insert((void *)p, target, &fatfs_fsal)) {
         pr_dbg("%s: %s: insert path %s failed!\n", FS_MODEL_NAME, __func__, p);
-        kfree(fsobj);
+        mem_free(fsobj);
         return -1;
     }
 #ifdef DEBUG_FATFS
@@ -167,7 +167,7 @@ static int __unmount(char *path, unsigned long flags)
         return -1;
     }
 
-    kfree(ext->fsobj);
+    mem_free(ext->fsobj);
     ext->fsobj = NULL;
 
     return 0;

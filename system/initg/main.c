@@ -42,6 +42,7 @@ int main(int argc, char *argv[])
             }
         }
     }
+    printf("launch desktop\n");
     /* 启动桌面 */
     exit(execv("/sbin/desktop", NULL));
     return 0;

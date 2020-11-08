@@ -1,9 +1,9 @@
 #ifndef _XBOOK_TIMER_H
 #define _XBOOK_TIMER_H
 
-#include <list.h>
+#include <xbook/list.h>
 #include "memcache.h"
-#include "ktime.h"
+#include <sys/time.h>
 
 typedef void (*timer_callback_t) (unsigned long); 
 
@@ -27,8 +27,11 @@ typedef struct timer_struct {
 #define DEFINE_TIMER(timer_name, timeout, arg, callback) \
     timer_t timer_name = TIMER_INIT(timer_name, timeout, arg, callback); \
 
-#define timer_alloc()       kmalloc(sizeof(timer_t))
-#define timer_free(timer)   kfree(timer)
+#define timer_alloc()       mem_alloc(sizeof(timer_t))
+#define timer_free(timer)   mem_free(timer)
+
+#define timer_set_handler(tmr, handler) (tmr)->callback = (timer_callback_t)(handler)
+#define timer_set_arg(tmr, _arg) (tmr)->arg = (unsigned long )(_arg)
 
 void timer_init(
     timer_t *timer,
@@ -38,13 +41,13 @@ void timer_init(
 
 void timer_add(timer_t *timer);
 void timer_del(timer_t *timer);
-void timer_mod(timer_t *timer, unsigned long timeout);
+void timer_modify(timer_t *timer, unsigned long timeout);
 int timer_cancel(timer_t *timer);
 int timer_alive(timer_t *timer);
 
-void update_timers();
+void timer_update_ticks();
 long sys_usleep(struct timeval *inv, struct timeval *outv);
 
-int init_timer_system();
+int timers_init();
 
 #endif   /* _XBOOK_TIMER_H */

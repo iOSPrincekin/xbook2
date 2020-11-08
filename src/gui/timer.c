@@ -1,7 +1,7 @@
 #include <gui/timer.h>
 #include <gui/message.h>
 #include <gui/layer.h>
-#include <xbook/kmalloc.h>
+#include <xbook/memalloc.h>
 #include <xbook/clock.h>
 #include <xbook/debug.h>
 
@@ -37,7 +37,7 @@ void gui_timer_handler(unsigned long arg)
  */
 uint32_t sys_gui_new_timer(uint32_t msec, int arg)
 {
-    gui_timer_t *gtmr = kmalloc(sizeof(gui_timer_t));
+    gui_timer_t *gtmr = mem_alloc(sizeof(gui_timer_t));
     if (gtmr == NULL)
         return 0;
     gtmr->layer = arg;
@@ -81,7 +81,7 @@ int sys_gui_modify_timer(uint32_t timer, uint32_t msec)
     if (gtmr == NULL)
         return -1;
     clock_t ticks = MSEC_TO_TICKS(msec);
-    timer_mod(&gtmr->timer, ticks);
+    timer_modify(&gtmr->timer, ticks);
     if (!timer_alive(&gtmr->timer)) { /* 修改后，如果没在定时器链表中，就添加进去 */
         timer_add(&gtmr->timer);
     }
@@ -97,6 +97,6 @@ int sys_gui_del_timer(uint32_t timer)
     if (timer_cancel(&gtmr->timer) < 0)
         return -1;
     list_del(&gtmr->list);
-    kfree(gtmr);
+    mem_free(gtmr);
     return 0;
 }

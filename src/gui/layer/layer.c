@@ -1,6 +1,6 @@
 #include <string.h>
 #include <unistd.h>
-#include <xbook/kmalloc.h>
+#include <xbook/memalloc.h>
 #include <xbook/debug.h>
 #include <xbook/msgpool.h>
 #include <xbook/task.h>
@@ -31,8 +31,6 @@ int layer_next_id = 0;  /* 图层id */
 #ifdef LAYER_ALPAH
 uint32_t *screen_backup_buffer; /*  */
 #endif
-mem_cache_t layer_buffer_memcache;  /* 图层缓冲区内存分配器 */
-mem_cache_t layer_buffer_memcache_ex;  /* 图层缓冲区内存分配器 */
 
 /* 图层链表管理的自旋锁 */
 DEFINE_SPIN_LOCK(layer_list_spin_lock);
@@ -55,17 +53,17 @@ layer_t *create_layer(int width, int height)
 {
     size_t bufsz = width * height * sizeof(GUI_COLOR);
     uint32_t flags = 0;
-    GUI_COLOR *buffer = kmalloc(bufsz);
+    GUI_COLOR *buffer = mem_alloc(bufsz);
     if (buffer == NULL) {
-        printk(KERN_NOTICE "[gui]: alloc layer buffer in kmalloc failed!\n");
+        printk(KERN_NOTICE "[gui]: alloc layer buffer in mem_alloc failed!\n");
         return NULL;
     }
 
     memset(buffer, 0, width * height * sizeof(GUI_COLOR));
-    layer_t *layer = kmalloc(sizeof(layer_t));
+    layer_t *layer = mem_alloc(sizeof(layer_t));
 
     if (layer == NULL) {
-        kfree(buffer);
+        mem_free(buffer);
         return NULL;
     }
 
@@ -524,13 +522,13 @@ int destroy_layer(layer_t *layer)
     layer_mutex_lock(layer);
     
     /* 释放缓冲区 */
-    kfree(layer->buffer);
+    mem_free(layer->buffer);
     
     layer->buffer = NULL;
     layer_mutex_unlock(layer);
 
     /* 释放图层 */
-    kfree(layer);
+    mem_free(layer);
     return 0;
 }
 
@@ -1014,7 +1012,7 @@ int layer_reset_size(layer_t *layer, int x, int y, uint32_t width, uint32_t heig
         return -1;
     }
     size_t bufsz = width * height * sizeof(GUI_COLOR);
-    uint32_t *buffer = kmalloc(bufsz);
+    uint32_t *buffer = mem_alloc(bufsz);
     if (buffer == NULL) {
         return -1;
     }
@@ -1026,7 +1024,7 @@ int layer_reset_size(layer_t *layer, int x, int y, uint32_t width, uint32_t heig
     layer_mutex_lock(layer);
    
     /* 重新绑定缓冲区 */
-    kfree(layer->buffer);
+    mem_free(layer->buffer);
 
     layer->buffer = NULL;
     layer->buffer = buffer;
@@ -1629,18 +1627,16 @@ int layer_focus_win_top()
 }
 int gui_init_layer()
 {
-    size_t maxsz = gui_screen.width * gui_screen.height * sizeof(uint32_t) + PAGE_SIZE;
-    printk(KERN_DEBUG "max layer buffer size=%x %dMB\n", maxsz, maxsz/ MB);
-    mem_cache_init(&layer_buffer_memcache, "layer_buffer", maxsz, 0);
-    maxsz = gui_screen.width * gui_screen.height * sizeof(uint16_t);
+    size_t maxsz = gui_screen.width * gui_screen.height * sizeof(uint32_t);
+    printk(KERN_DEBUG "layer: frame buffer size=%x %dMB\n", maxsz, maxsz/ MB);
     /* 分配地图空间 */
-    layer_map = mem_cache_alloc_object(&layer_buffer_memcache);
+    layer_map = mem_alloc(maxsz/2);
     if (layer_map == NULL) {
         return -1;
     }
-    memset(layer_map, 0, maxsz);
+    memset(layer_map, 0, maxsz/2);
     #ifdef LAYER_ALPAH /* 分配屏幕缓冲区 */
-    screen_backup_buffer = mem_cache_alloc_object(&layer_buffer_memcache);
+    screen_backup_buffer = mem_alloc(maxsz);
     if (screen_backup_buffer == NULL) {
         return -1;
     }
@@ -1674,7 +1670,10 @@ int gui_init_layer()
     }
 
     if (init_mouse_layer() < 0) {
-        kfree(layer_map);
+        #ifdef LAYER_ALPAH /* 分配屏幕缓冲区 */
+        mem_free(screen_backup_buffer);
+        #endif
+        mem_free(layer_map);
         return -1;
     }
     /*
