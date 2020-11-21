@@ -12,7 +12,7 @@
 #include <arch/interrupt.h>
 #include <arch/task.h>
 #include <sys/pthread.h>
-#include <fsal/fsal.h>
+#include <fsal/fd.h>
 #include <gui/message.h>
 #include <unistd.h>
 
@@ -34,11 +34,16 @@ static int proc_load_segment(int fd, unsigned long offset, unsigned long file_sz
         printk(KERN_ERR "proc_load_segment: mem_space_mmap failed!\n");
         return -1;
     }
+<<<<<<< HEAD
     memset(vaddr_page, 0, occupy_pages * PAGE_SIZE);
     sys_lseek(fd, offset, SEEK_SET);
     uint8_t *buf = (uint8_t *)vaddr;
     ssize_t file_size = (ssize_t) file_sz;
     if (sys_read(fd, buf, file_size) != file_size) {
+=======
+    kfile_lseek(fd, offset, SEEK_SET);
+    if (kfile_read(fd, (void *)vaddr, file_sz) != file_sz) {
+>>>>>>> purekern
         return -1;
     }
     return 0;
@@ -53,8 +58,8 @@ int proc_load_image(vmm_t *vmm, struct Elf32_Ehdr *elf_header, int fd)
     unsigned long grog_idx = 0;
     while (grog_idx < elf_header->e_phnum) {
         memset(&prog_header, 0, prog_header_size);
-        sys_lseek(fd, prog_header_off, SEEK_SET);
-        if (sys_read(fd, (void *)&prog_header, prog_header_size) != prog_header_size) {
+        kfile_lseek(fd, prog_header_off, SEEK_SET);
+        if (kfile_read(fd, (void *)&prog_header, prog_header_size) != prog_header_size) {
             return -1;
         }
         if (prog_header.p_type == PT_LOAD) {
@@ -179,24 +184,6 @@ int proc_vmm_exit_when_forking(task_t *child, task_t *parent)
     return 0;
 }
 
-int proc_trigger_init(task_t *task)
-{
-    task->triggers = mem_alloc(sizeof(triggers_t));
-    if (task->triggers == NULL)
-        return -1;
-    trigger_init(task->triggers);
-    return 0;
-}
-
-int proc_trigger_exit(task_t *task)
-{
-    if (task->triggers == NULL)
-        return -1;
-    mem_free(task->triggers);
-    task->triggers = NULL;
-    return 0;
-}
-
 int proc_pthread_init(task_t *task)
 {
     task->pthread = mem_alloc(sizeof(pthread_desc_t));
@@ -218,10 +205,10 @@ int proc_pthread_exit(task_t *task)
 int proc_release(task_t *task)
 {
     proc_vmm_exit(task);
-    proc_trigger_exit(task);
     fs_fd_exit(task);
     gui_user_exit(task);
     proc_pthread_exit(task);
+    exception_manager_exit(&task->exception_manager);
     task_do_cancel(task);
     return 0;
 }
@@ -313,13 +300,7 @@ task_t *user_process_start(char *name, char **argv)
         mem_free(task);
         return NULL;
     }
-    if (proc_trigger_init(task)) {
-        proc_vmm_exit(task);
-        mem_free(task);
-        return NULL;
-    }
     if (fs_fd_init(task) < 0) {
-        proc_trigger_exit(task);
         proc_vmm_exit(task);
         mem_free(task);
         return NULL;

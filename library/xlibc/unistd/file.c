@@ -16,8 +16,12 @@ int open(const char *path, int flags)
     char full_path[MAX_PATH] = {0};
     build_path(path, full_path);
     const char *p = (const char *) full_path;
-
-    return syscall2(int, SYS_OPEN, p, flags);
+    int retval = syscall2(int, SYS_OPEN, p, flags);
+    if (retval < -1) {
+        _set_errno(-retval);
+        retval = -1;
+    }
+    return retval;
 }
 
 int close(int fd)
@@ -136,7 +140,17 @@ int pipe(int fd[2])
     return syscall1(int, SYS_PIPE, fd);
 }
 
-int probe(const char *name, int flags, char *buf, size_t buflen)
+int probedev(const char *name, char *buf, size_t buflen)
 {
-    return syscall4(int, SYS_PROBE, name, flags, buf, buflen);
+    return syscall3(int, SYS_PROBEDEV, name, buf, buflen);
+}
+
+int opendev(const char *devname, int flags)
+{
+    return syscall2(int, SYS_OPENDEV, devname, flags);
+}
+
+int openfifo(const char *fifoname, int flags)
+{
+    return syscall2(int, SYS_OPENFIFO, fifoname, flags);
 }

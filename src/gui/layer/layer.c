@@ -1676,13 +1676,5 @@ int gui_init_layer()
         mem_free(layer_map);
         return -1;
     }
-    /*
-    layer_t *test = create_layer(300, 200);
-    layer_set_z(test, 0);
-    layer_draw_rect_fill(test, 10, 10, 1, 1, COLOR_RED);
-    layer_draw_rect(test, 10, 20, 1, 1, COLOR_RED);
-    layer_refresh_rect(test, 10, 10, 1, 1);
-    spin("test");*/
-
     return 0;
 }

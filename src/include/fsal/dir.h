@@ -1,8 +1,7 @@
-#ifndef __FILESRV_FSAL_DIR_H__
-#define __FILESRV_FSAL_DIR_H__
+#ifndef _FSAL_DIR_H
+#define _FSAL_DIR_H
 
 #include "fsal.h"
-#include "../../fs/fatfs/ff.h"
 #include <stdint.h>
 #include <types.h>
 
@@ -17,9 +16,12 @@ typedef int dir_t;
 typedef struct {
     char flags;             /* 文件标志 */
     fsal_t *fsal;           /* 文件系统抽象 */
+    void *extension;        /* 目录扩展 */
+    #if 0
     union {
         DIR fatfs;          /* fatfs目录结构 */
-    } dir;    
+    } dir;
+    #endif    
 } fsal_dir_t;
 
 #define fstate_t dirent_t 
@@ -31,13 +33,13 @@ extern fsal_dir_t *fsal_dir_table;
 /* 在表中的索引转换成文件指针 */
 #define FSAL_I2D(idx)  ((fsal_dir_t *)(&fsal_dir_table[(idx)]))
 
-#define ISBAD_FSAL_DIDX(idx) ((idx) < 0 || (idx) >= FSAL_DIR_OPEN_NR)
+#define FSAL_IS_BAD_DIR(idx) ((idx) < 0 || (idx) >= FSAL_DIR_OPEN_NR)
 
-int init_fsal_dir_table();
+int fsal_dir_table_init();
 fsal_dir_t *fsal_dir_alloc();
 int fsal_dir_free(fsal_dir_t *dir);
 
 void build_path(const char *path, char *out_path);
 void wash_path(char *old_path, char *new_path);
 
-#endif  /* __FILESRV_FSAL_DIR_H__ */
+#endif  /* _FSAL_DIR_H */

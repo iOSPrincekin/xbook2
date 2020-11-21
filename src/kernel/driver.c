@@ -13,6 +13,7 @@
 #include <xbook/virmem.h>
 #include <xbook/schedule.h>
 #include <xbook/initcall.h>
+#include <fsal/fsal.h>
 
 // #define DRIVER_FRAMEWROK_DEBUG
 
@@ -593,6 +594,7 @@ int io_device_queue_pickup(device_queue_t *queue, unsigned char *buf, int buflen
         }
         wait_queue_add(&queue->wait_queue, task_current);
         spin_unlock_irqrestore(&queue->lock, irqflags);
+        TASK_ENTER_WAITLIST(task_current);
         task_block(TASK_BLOCKED);
         spin_lock_irqsave(&queue->lock, irqflags);   
     }
@@ -760,7 +762,7 @@ void *device_mmap(handle_t handle, size_t length, int flags)
     return NULL;
 }
 
-int device_grow(handle_t handle)
+int device_incref(handle_t handle)
 {
     if (IS_BAD_DEVICE_HANDLE(handle))
         return -1;
@@ -775,7 +777,7 @@ int device_grow(handle_t handle)
     return -1;
 }
 
-int device_degrow(handle_t handle)
+int device_decref(handle_t handle)
 {
     if (IS_BAD_DEVICE_HANDLE(handle))
         return -1;
@@ -983,10 +985,81 @@ int input_even_get(input_even_buf_t *evbuf, input_event_t *even)
     return 0;
 }
 
+static int devif_open(void *pathname, int flags)
+{
+    char *p = (char *) pathname;
+    return device_open(p, flags);
+}
+
+static int devif_close(int handle)
+{
+    return device_close(handle);
+}
+
+static int devif_incref(int handle)
+{
+    return device_incref(handle);
+}
+
+static int devif_decref(int handle)
+{
+    return device_decref(handle);
+}
+
+static int devif_read(int handle, void *buf, size_t size)
+{
+    return device_read(handle, buf, size, DISKOFF_MAX);
+}
+
+static int devif_write(int handle, void *buf, size_t size)
+{
+    return device_write(handle, buf, size, DISKOFF_MAX);
+}
+
+static int devif_ioctl(int handle, int cmd, unsigned long arg)
+{
+    return device_devctl(handle, cmd, arg);
+}
+
+static int devif_lseek(int handle, off_t off, int whence)
+{
+    return device_devctl(handle, DISKIO_SETOFF, (unsigned long) &off);
+}
+
+static size_t devif_fsize(int handle)
+{
+    int size = 0;
+    if (device_devctl(handle, DISKIO_GETSIZE, (unsigned long) &size) < 0)
+        return 0;
+    return size;
+}
+
+static off_t devif_ftell(int handle)
+{
+    off_t off = 0;
+    if (device_devctl(handle, DISKIO_GETOFF, (unsigned long) &off) < 0)
+        return 0;
+    return off;
+}
+
+fsal_t devif;
+
 void driver_framewrok_init()
 {
     int i;
     for (i = 0; i < DEVICE_HANDLE_NR; i++) {
         device_handle_table[i] = NULL;
     }
+    memset(&devif, 0, sizeof(fsal_t));
+    devif.name = "devif";
+    devif.open      = devif_open;
+    devif.close     = devif_close;
+    devif.incref    = devif_incref;
+    devif.decref    = devif_decref;
+    devif.read      = devif_read;
+    devif.write     = devif_write;
+    devif.ioctl     = devif_ioctl;
+    devif.lseek     = devif_lseek;
+    devif.fsize     = devif_fsize;
+    devif.ftell     = devif_ftell;
 }

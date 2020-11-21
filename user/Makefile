@@ -31,9 +31,12 @@ MODULE      +=  mv
 MODULE      +=  rename
 MODULE      +=  mkdir
 MODULE      +=  rmdir
-MODULE      +=  trig
 MODULE      +=  touch
 MODULE      +=  tests
 MODULE      +=  hello
+<<<<<<< HEAD
 MODULE      +=  bosh
 MODULE      +=  gato
+=======
+MODULE      +=  osver
+>>>>>>> purekern

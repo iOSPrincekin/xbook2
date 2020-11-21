@@ -4,10 +4,12 @@
 
 #include <xbook/driver.h>
 #include <xbook/schedule.h>
+#include <xbook/exception.h>
 #include <arch/io.h>
 #include <arch/interrupt.h>
 #include <sys/ioctl.h>
 #include <stdio.h>
+#include <xbook/fifoio.h>
 
 #define DRV_NAME "virtual-tty"
 #define DRV_VERSION "0.1"
@@ -22,12 +24,16 @@
 /* 一个8个tty设备数 */
 #define TTY_DEVICE_NR       8
 
+#define DEV_FIFO_BUF_LEN     64
+
 // #define DEBUG_DRV
 
+struct _device_extension;
 /* 设备共有的资源 */
 typedef struct _device_public {
     handle_t visitor_id;        /* 可访问者设备id */
     int detach_kbd;             /* 分离键盘 */
+    struct _device_extension *extensions[TTY_DEVICE_NR];
 } device_public_t;
 
 typedef struct _device_extension {
@@ -37,6 +43,8 @@ typedef struct _device_extension {
     handle_t con;           /* 对于的控制台设备 */
     handle_t kbd;           /* 对于的键盘设备 */
     device_public_t *public;    /* 共有资源 */
+    uint32_t lctl;        /* 组合按键 */
+    fifo_io_t fifoio;
 } device_extension_t;
 
 static int tty_set_visitor(device_object_t *device, int visitor)
@@ -121,7 +129,7 @@ static unsigned char _g_keycode_map_table[] = {
 /**
  * 键值转换
  */
-static unsigned char _g_key_code_switch(int code)
+static unsigned char __key_code_switch(int code)
 {
     unsigned char key_value = '?';
     unsigned int i = 0;
@@ -134,16 +142,41 @@ static unsigned char _g_key_code_switch(int code)
     return 0; // not switch
 }
 
-
-static int tty_filter_keycode(int keycode)
+static int tty_filter_keycode_down(device_extension_t *extension, int keycode)
 {
     /* 处理CTRL, ALT, SHIFT*/
     switch (keycode) {
+    case KEY_LCTRL:    /* left ctl */
+        extension->lctl = 1;
     case KEY_LSHIFT:    /* left shift */
     case KEY_RSHIFT:    /* right shift */
     case KEY_LALT:    /* left alt */
     case KEY_RALT:    /* right alt */
+    case KEY_RCTRL:    /* right ctl */
+    case KEY_NUMLOCK:     /* numlock */
+    case KEY_CAPSLOCK:    /* capslock */
+    case KEY_SCROLLOCK:  /* scrollock */
+    case KEY_UP:           /* up arrow */
+    case KEY_DOWN:         /* down arrow */
+    case KEY_RIGHT:        /* right arrow */
+    case KEY_LEFT:         /* left arrow */
+        return 1;
+    default:
+        break;
+    }
+    return 0;
+}
+
+static int tty_filter_keycode_up(device_extension_t *extension, int keycode)
+{
+    /* 处理CTRL, ALT, SHIFT*/
+    switch (keycode) {
     case KEY_LCTRL:    /* left ctl */
+        extension->lctl = 0;
+    case KEY_LSHIFT:    /* left shift */
+    case KEY_RSHIFT:    /* right shift */
+    case KEY_LALT:    /* left alt */
+    case KEY_RALT:    /* right alt */
     case KEY_RCTRL:    /* right ctl */
     case KEY_NUMLOCK:     /* numlock */
     case KEY_CAPSLOCK:    /* capslock */
@@ -167,48 +200,27 @@ iostatus_t tty_read(device_object_t *device, io_request_t *ioreq)
     if (extension->public->visitor_id == extension->device_id) {  /* 可拜访者设备id */
         /* 前台任务 */
         if (extension->hold_pid == task_current->pid) {
-            if (!extension->public->detach_kbd) {    /* 键盘分离了就不能读取键盘 */
-                /* read from input even */
-                struct input_event event;
-                int ret = 0;
-                memset(&event, 0, sizeof(event));
-                while (1) {
-                    ret = device_read(extension->kbd, &event, sizeof(event), 0);
-                    if ( ret >= 1 ) {
-                        switch (event.type)
-                        {                
-                            case EV_KEY:
-                                /* 按下的按键 */
-                                if ((event.value) > 0 && !tty_filter_keycode(event.code)) {
-                                    ioreq->io_status.infomation = 1;
-                                    uint8_t ch = _g_key_code_switch(event.code);
-                                    if (ch > 0)
-                                        event.code = ch;
-                                    *(unsigned int *) ioreq->user_buffer = event.code;
-                                    status = IO_SUCCESS;
-                                    #ifdef DEBUG_DRV                                
-                                    printk(KERN_DEBUG "tty: read keycode %x\n", event.code);
-                                    #endif
-                                    device_write(extension->con,
-                                        &event.code, 1, 0);
-
-                                    goto end_of_read;
-                                }
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                  
+            // get key code from keyboard fifo buf
+            uint8_t *buf = ioreq->user_buffer;
+            size_t len = ioreq->parame.read.length;
+            size_t read_count = 0;
+            while (len > 0) {
+                uint8_t code = fifo_io_get(&extension->fifoio);
+                if (code > 0) {
+                    *buf = code;
+                    buf++;
+                    len--;
+                    read_count++;
+                } else {
+                    break;
                 }
-                
             }
+            ioreq->io_status.infomation = read_count;
+            status = IO_SUCCESS;
         } else {    /* 不是前台任务就触发任务的硬件触发器 */
-            printk("not front");
-            trigger_force(TRIGSYS, task_current->pid);
+            exception_force_self(EXP_CODE_TTIN);
         }
     }
-end_of_read:
     ioreq->io_status.status = status;
     /* 调用完成请求 */
     io_complete_request(ioreq);
@@ -263,6 +275,51 @@ iostatus_t tty_devctl(device_object_t *device, io_request_t *ioreq)
     return status;
 }
 
+void tty_thread(void *arg)
+{
+    device_public_t *public = (device_public_t *)arg;
+    while (1)
+    {
+        device_extension_t *extension = public->extensions[public->visitor_id];
+        if (!extension->public->detach_kbd) {    /* 键盘分离了就不能读取键盘 */
+            /* read from input even */
+            struct input_event event;
+            int ret = 0;
+            memset(&event, 0, sizeof(event));
+            ret = device_read(extension->kbd, &event, sizeof(event), 0);
+            if ( ret >= 1 ) {
+                switch (event.type) {                
+                case EV_KEY:
+                    /* 按下的按键 */
+                    if ((event.value) > 0) {
+                        if (!tty_filter_keycode_down(extension, event.code)) {
+                            uint8_t ch = __key_code_switch(event.code);
+                            if (ch > 0)
+                                event.code = ch;
+                            if (extension->lctl && (event.code == 'c' || event.code == 'C')) {
+                                // ctl + c
+                                exception_send(extension->hold_pid, EXP_CODE_INT);
+                                //printk("hold pid=%d\n", extension->hold_pid);
+                            } else {
+                                /* put into fifo buf */
+                                fifo_io_put(&extension->fifoio, event.code);
+                                device_write(extension->con,
+                                    &event.code, 1, 0);
+                            }
+                        }
+                    } else {
+                        tty_filter_keycode_up(extension, event.code);
+                    }
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+    }
+}
+
+
 static iostatus_t tty_enter(driver_object_t *driver)
 {
     iostatus_t status;
@@ -306,12 +363,28 @@ static iostatus_t tty_enter(driver_object_t *driver)
         extension->hold_pid = -1;   /* 没有进程持有 */
         extension->kbd = kbd;
         extension->con = -1;    /* 没有控制台 */
+        extension->lctl = 0;
         extension->public = public;
+        unsigned char *buf = mem_alloc(DEV_FIFO_BUF_LEN);
+        if (buf == NULL) {
+            status = IO_FAILED;
+            printk(KERN_DEBUG "keyboard_enter: alloc buf failed!\n");
+            device_close(kbd);
+            mem_free(public);
+            io_delete_device(devobj);
+            return status;
+        }
+        fifo_io_init(&extension->fifoio, buf, DEV_FIFO_BUF_LEN);
+
         /* 默认第一个tty */
         if (public->visitor_id == -1)
             public->visitor_id = i;
+        public->extensions[i] = extension;
         public->detach_kbd = 0; /* 键盘尚未分离 */
     }
+
+    kern_thread_start("tty", TASK_PRIO_LEVEL_NORMAL, tty_thread, public);
+
     return status;
 }
 

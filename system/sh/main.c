@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <sys/ioctl.h>
-#include <sys/trigger.h>
+#include <sys/exception.h>
 
 #include "sh.h"
 
@@ -43,14 +43,10 @@ int main(int argc, char *argv[])
     int pid = getpid();
     ioctl(0, TTYIO_HOLDER, &pid);
 
-    trigger(TRIGUSR0, sh_exit_trigger);
-
-    /* 屏蔽轻软件触发器 */
-    trigset_t trigsets;
-    trigemptyset(&trigsets);
-    trigaddset(&trigsets, TRIGLSOFT);
-    trigprocmask(TRIG_BLOCK, &trigsets, NULL);
-
+    expcatch(EXP_CODE_USER, sh_exit_handler);
+    expblock(EXP_CODE_TERM);
+    expblock(EXP_CODE_INT);
+    
     // set environment value
     environ = sh_environment;
 
@@ -87,7 +83,7 @@ int main(int argc, char *argv[])
 
 /**
  * print_prompt - 打印提示符
- *  
+ * 
  */
 void print_prompt()
 {
@@ -108,7 +104,6 @@ void readline(char *buf, uint32_t count)
     while (len < count)
     {
         read(STDIN_FILENO, pos, 1);
-        
         if (*pos == '\n') {
             *(pos) = '\0'; // 修改成0
             break;
@@ -125,7 +120,6 @@ void readline(char *buf, uint32_t count)
             len++;
             pos++;
         }
-        
     }
 }
 
@@ -140,7 +134,7 @@ void sh_exit(int ret, int relation)
     if (relation) {
         pid_t ppid = getppid();
         if (ppid > 0) /* 关闭父进程 */
-            triggeron(TRIGUSR0, ppid);
+            expsend(EXP_CODE_USER, ppid);
     }
     exit(ret);
 }
@@ -152,9 +146,9 @@ static int buildin_cmd_exit(int argc, char **argv)
     return 0;
 }
 
-void sh_exit_trigger(int trigno)
+void sh_exit_handler(uint32_t code)
 {
-    sh_exit(trigno, 0);
+    sh_exit(code, 0);
 }
 
 int buildin_cmd_cls(int argc, char **argv)
@@ -272,8 +266,7 @@ int execute_cmd(int argc, char **argv)
 
         if (pid > 0) {  /* 父进程 */
             // 把子进程设置为前台
-            ioctl(0, TTYIO_HOLDER, &pid);
-
+            // ioctl(0, TTYIO_HOLDER, &pid);
             /* shell程序等待子进程退出 */
             pid = wait(&status);
             pid = getpid();

@@ -1,6 +1,8 @@
 #ifndef _XBOOK_SYSCALL_H
 #define _XBOOK_SYSCALL_H
 
+#include <stdint.h>
+
 typedef void * syscall_t;
 
 enum syscall_num {
@@ -12,10 +14,6 @@ enum syscall_num {
     SYS_COEXIST,
     SYS_GETPID,
     SYS_GETPPID,
-    SYS_TRIGGER,
-    SYS_TRIGGERON,
-    SYS_TRIGGERACT,
-    SYS_TRIGRET,
     SYS_SLEEP,
     SYS_THREAD_CREATE,
     SYS_THREAD_EXIT,
@@ -123,8 +121,6 @@ enum syscall_num {
     SYS_MSGPUT,
     SYS_MSGSEND,
     SYS_MSGRECV,
-    SYS_TRIGPENDING,
-    SYS_TRIGPROCMASK,
     SYS_XCONGET,
     SYS_XCONCLEAR,
     SYS_XCONPUT,
@@ -160,7 +156,13 @@ enum syscall_num {
     SYS_LAYERCOPYBMP,
     SYS_GGETICONPATH,
     SYS_GSETICONPATH,
-    SYS_PROBE,
+    SYS_PROBEDEV,
+    SYS_EXPSEND,
+    SYS_EXPCATCH,
+    SYS_EXPBLOCK,
+    SYS_EXPRET,
+    SYS_OPENDEV,
+    SYS_OPENFIFO,
     SYSCALL_NR,
 };
 
@@ -169,5 +171,6 @@ SYS_WAITPID，SYS_SLEEP，SYS_THREAD_JOIN，SYS_GETRES, SYS_PUTRES, SYS_READRES,
 SYS_WRITERES */
 
 void syscall_init();
+int syscall_error(uint32_t callno);
 
 #endif   /*_XBOOK_SYSCALL_H*/

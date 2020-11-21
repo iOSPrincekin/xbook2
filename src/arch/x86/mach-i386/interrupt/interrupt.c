@@ -1,8 +1,12 @@
 #include <arch/interrupt.h>
 #include <arch/registers.h>
 #include <xbook/debug.h>
-#include <xbook/trigger.h>
+#include <xbook/exception.h>
 #include <xbook/schedule.h>
+#include <xbook/exception.h>
+#include <xbook/syscall.h>
+#include <arch/segment.h>
+#include <string.h>
 
 #define DEBUG_INTR
 
@@ -12,60 +16,86 @@ char* interrupt_names[MAX_INTERRUPT_NR];
 void interrupt_general_handler(unsigned int esp) 
 {
 	trap_frame_t *frame = (trap_frame_t *)((unsigned int )esp);
-
     //IRQ7和IRQ15可能会产生伪中断(spurious interrupt),无须处理。
 	if (frame->vec_no == 0x27 || frame->vec_no == 0x2f) {	
-      	return;		
+      	return;
    	}
-    switch (frame->vec_no) {
-    case EP_PAGE_FAULT:
-        if (task_init_done) {
+    if (task_init_done) {
+        switch (frame->vec_no) {
+        case EP_PAGE_FAULT:
             page_do_fault(frame);
-    		return;
-        } else {
-            unsigned long addr = 0x00;
-            addr = cpu_cr2_read(); /* cr2 saved the fault addr */
-            printk("page fault addr:%x\n", addr);
+            break;
+        case EP_DIVIDE:
+        case EP_INVALID_OPCODE:
+            exception_force_self(EXP_CODE_ILL);
+            break;
+        case EP_DEVICE_NOT_AVAILABLE:
+            exception_force_self(EXP_CODE_DEVICE);
+            break;
+        case EP_COPROCESSOR_SEGMENT_OVERRUN:
+        case EP_X87_FLOAT_POINT:
+        case EP_SIMD_FLOAT_POINT:
+            exception_force_self(EXP_CODE_FPE);
+            break;
+        case EP_OVERFLOW:
+        case EP_BOUND_RANGE:
+        case EP_INVALID_TSS:
+        case EP_ALIGNMENT_CHECK:
+            exception_force_self(EXP_CODE_BUS);
+            break;
+        case EP_SEGMENT_NOT_PRESENT:
+        case EP_GENERAL_PROTECTION:
+            exception_force_self(EXP_CODE_SEGV);
+            break;
+        case EP_STACK_FAULT:
+            exception_force_self(EXP_CODE_STKFLT);
+            break;
+        case EP_MACHINE_CHECK:
+        case EP_INTERRUPT:
+            exception_force_self(EXP_CODE_INT);
+            break;
+        case EP_DOUBLE_FAULT:
+            exception_force_self(EXP_CODE_FINALHIT);
+            break;
+        case EP_DEBUG:
+        case EP_BREAKPOINT:
+            exception_force_self(EXP_CODE_TRAP);
+            break;
+        default:
+            break;
         }
-    case EP_DIVIDE:
-    case EP_DEVICE_NOT_AVAILABLE:
-    case EP_COPROCESSOR_SEGMENT_OVERRUN:
-    case EP_X87_FLOAT_POINT:
-    case EP_SIMD_FLOAT_POINT:
-    case EP_OVERFLOW:
-	case EP_BOUND_RANGE:
-    case EP_SEGMENT_NOT_PRESENT:
-    case EP_STACK_FAULT:
-	case EP_INVALID_TSS:
-    case EP_GENERAL_PROTECTION:
-    case EP_ALIGNMENT_CHECK:
-    case EP_MACHINE_CHECK:
-    case EP_INVALID_OPCODE:
-	case EP_INTERRUPT:
-    case EP_DOUBLE_FAULT:
-        if (task_init_done) {
-            #ifdef DEBUG_INTR
-            printk(KERN_EMERG "interrupt_general_handler: touch TRIGHW trigger because a expection %d occur!\n", frame->vec_no);
-            #endif
-            trigger_force(TRIGSYS, task_current->pid);
-            trap_frame_dump(frame);
-		    return;
+    } else {
+        switch (frame->vec_no) {
+        case EP_PAGE_FAULT:
+            {
+                unsigned long addr = 0x00;
+                addr = cpu_cr2_read(); /* cr2 saved the fault addr */
+                printk("page fault addr:%x\n", addr);
+            }            
+        case EP_DIVIDE:
+        case EP_DEVICE_NOT_AVAILABLE:
+        case EP_COPROCESSOR_SEGMENT_OVERRUN:
+        case EP_X87_FLOAT_POINT:
+        case EP_SIMD_FLOAT_POINT:
+        case EP_OVERFLOW:
+        case EP_BOUND_RANGE:
+        case EP_SEGMENT_NOT_PRESENT:
+        case EP_STACK_FAULT:
+        case EP_INVALID_TSS:
+        case EP_GENERAL_PROTECTION:
+        case EP_ALIGNMENT_CHECK:
+        case EP_MACHINE_CHECK:
+        case EP_INVALID_OPCODE:
+        case EP_INTERRUPT:
+        case EP_DOUBLE_FAULT:
+        case EP_DEBUG:
+        case EP_BREAKPOINT:
+        default:
+            break;
         }
-	case EP_DEBUG:
-    case EP_BREAKPOINT:
-        if (task_init_done) {
-            #ifdef DEBUG_INTR
-		    printk(KERN_NOTICE "interrupt_general_handler: touch TRIGDBG trigger because a debug occur!\n");
-            #endif
-            trigger_force(TRIGDBG, task_current->pid);
-            trap_frame_dump(frame);
-            return;
-        }
-    default:
-		break;
-	}
-    trap_frame_dump(frame);
-   	panic("Expection not resuloved!\n");
+        trap_frame_dump(frame);
+        panic("Expection not resuloved!\n");
+    }
 }
 
 void interrupt_expection_init(void)
@@ -154,4 +184,36 @@ void trap_frame_dump(trap_frame_t *frame)
 		}
 		printk(KERN_DEBUG "    Selector: idx %d\n", (frame->error_code&0xfff8)>>3);
 	}
+}
+
+void exception_frame_build(uint32_t code, exception_handler_t handler, trap_frame_t *frame)
+{
+    exception_frame_t *exp_frame = (exception_frame_t *)((frame->esp - sizeof(exception_frame_t)) & -8UL);
+    exp_frame->code = code;
+    memcpy(&exp_frame->trap_frame, frame, sizeof(trap_frame_t));
+    exp_frame->ret_addr = exp_frame->ret_code;
+
+    /* 构建返回代码，系统调用封装,模拟系统调用来实现从用户态返回到内核态
+    mov eax, SYS_TRIGRET
+    int 0x40 */
+    exp_frame->ret_code[0] = 0xb8;
+    *(uint32_t *)(exp_frame->ret_code + 1) = SYS_EXPRET;    /* 把系统调用号填进去 */
+    *(uint16_t *)(exp_frame->ret_code + 5) = 0x40cd;        /* int对应的指令是0xcd，系统调用中断号是0x40 */
+    
+    frame->eip = (unsigned int)handler;
+    frame->esp = (unsigned int)exp_frame;
+    frame->ds = frame->es = frame->fs = frame->gs = USER_DATA_SEL;
+    frame->ss = USER_STACK_SEL;
+    frame->cs = USER_CODE_SEL;
+}
+
+int exception_return(trap_frame_t *frame)
+{
+    exception_frame_t *exp_frame = (exception_frame_t *)(frame->esp - 4);
+    exception_manager_t *exception_manager = &task_current->exception_manager; 
+    unsigned long irq_flags;
+    spin_lock_irqsave(&exception_manager->manager_lock, irq_flags);
+    memcpy(frame, &exp_frame->trap_frame, sizeof(trap_frame_t));
+    spin_unlock_irqrestore(&exception_manager->manager_lock, irq_flags);
+    return frame->eax;
 }

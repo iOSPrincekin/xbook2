@@ -6,13 +6,15 @@
 #include <stddef.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <sys/ioctl.h>
 
-int init_fs()
+int file_system_init()
 {
-    printk("[fs]: init start...\n");
-    if (init_disk_driver() < 0)
-        panic("[fs]: init disk driver failed!\n");
+    printk(KERN_INFO "fs: init start.\n");
+    if (disk_manager_init() < 0)
+        panic("fs: init disk manager failed!\n");
 
+<<<<<<< HEAD
     /* 初始化接口部分 */
     if (init_fstype() < 0) {
         panic("init fstype failed, service stopped!\n");
@@ -49,40 +51,14 @@ int init_fs()
     int fd = sys_open("/root/kfs", O_CREAT | O_RDWR);
     if (fd < 0)
         return -1;
+=======
+    if (fstype_init() < 0)
+        panic("fs: init fstype failed, service stopped!\n");
+>>>>>>> purekern
     
-    int fd1 = sys_open("/root/kfs", O_CREAT | O_RDWR);
-    if (fd1 < 0)
-        return -1;
-    printk("fd %d fd1 %d.\n", fd, fd1);
-
-    int wr = sys_write(fd, "hello", 5);
-    printk("write file:%d %d bytes.\n", fd, wr);
-    sys_close(fd);
-    fd = sys_open("/root/kfs", O_CREAT | O_RDWR);
-    if (fd < 0)
-        return -1;
-    char buf[10];
-    int rd = sys_read(fd, buf, 10);
-    printk("read file:%d %d bytes.\n", fd, rd);
-    sys_close(fd);
-    printk("data:%s\n", buf);
-
-
-
-
-    dir_t dir = sys_opendir("/");
-    if (dir < 0) {
-        printk("open dir failed!\n");
+    if (fsal_init() < 0) {
+        panic("fs: init fsal failed, service stopped!\n");
     }
-
-    dirent_t dirent;
-    do {
-        if (sys_readdir(dir, &dirent) < 0)
-            break;
-        
-        printk("dir: %s\n", dirent.d_name);
-    } while (1);
-    sys_closedir(dir);
-#endif
+    printk(KERN_INFO "fs: init done.\n");
     return 0;
 }

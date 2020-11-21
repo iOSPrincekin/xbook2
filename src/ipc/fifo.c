@@ -2,6 +2,8 @@
 #include <xbook/debug.h>
 #include <string.h>
 #include <math.h>
+#include <unistd.h>
+#include <errno.h>
 #include <xbook/semaphore.h>
 #include <sys/ipc.h>
 
@@ -179,15 +181,7 @@ int fifo_put(int fifoid)
     return -1;
 }
 
-/**
- * @fifoflg: 管道标志：
- *          IPC_NOWAIT: 如果缓冲区已经满了，就直接返回，不阻塞
- *          IPC_NOSYNC: 如果读者没有就绪，就不同步等待读者
- * 
- * 写者需要等待读者就绪后才能写入，不然就需要在write的时候添加IPC_NOSYNC
- * @return: 成功返回0，失败返回-1
- */
-int fifo_write(int fifoid, void *buffer, size_t size, int fifoflg)
+int fifo_write(int fifoid, void *buffer, size_t size)
 {
     if (buffer == NULL || !size) {
         printk(KERN_ERR "%s: arg error!\n");
@@ -206,11 +200,10 @@ int fifo_write(int fifoid, void *buffer, size_t size, int fifoflg)
         printk(KERN_ERR "%s: no writer!\n");
         return -1;
     }
-    if (fifo->flags & (IPC_NOERROR << 24))
-        if (fifo->writer != task_current) {
-            printk(KERN_ERR "%s: writer no current task!\n");
-            return -1;
-        }
+    if (fifo->flags & (IPC_NOERROR << 24) && fifo->writer != task_current) {
+        printk(KERN_ERR "%s: writer no current task!\n");
+        return -1;
+    }
     fifo->flags |= FIFO_IN_WRITE;
     if (fifo->reader == NULL) {
         if (!(fifo->flags & (IPC_NOSYNC << 24))) {
@@ -219,48 +212,49 @@ int fifo_write(int fifoid, void *buffer, size_t size, int fifoflg)
     }
 
     mutex_lock(&fifo->mutex);
-    unsigned long flags;
     int left_size = (int )size;
     int off = 0;
     unsigned char *buf = buffer;
     int chunk = 0;
     int wrsize = 0;
     while (left_size > 0) {
-        interrupt_save_and_disable(flags);
+        while (fifo_buf_avali(fifo->fifo) <= 0) {
+            if (fifo->flags & (IPC_NOWAIT << 24)) {
+                fifo->flags &= ~FIFO_IN_WRITE;
+                mutex_unlock(&fifo->mutex);
+                return -1;
+            }
+            if (!fifo->reader || atomic_get(&fifo->readref) <= 0) {
+                exception_force_self(EXP_CODE_PIPE);
+                mutex_unlock(&fifo->mutex);
+                return -1; 
+            }
+            if (fifo->reader->state == TASK_BLOCKED &&
+                (fifo->flags & FIFO_IN_READ)) {
+                task_unblock(fifo->reader);
+            }
+            mutex_unlock(&fifo->mutex);
+            task_block(TASK_BLOCKED);
+            mutex_lock(&fifo->mutex);
+        }
+
         chunk = MIN(left_size, FIFO_SIZE);
         chunk = MIN(chunk, fifo_buf_avali(fifo->fifo));
         chunk = fifo_buf_put(fifo->fifo, buf + off, chunk);
         off += chunk;
         left_size -= chunk;
         wrsize += chunk;
-        if (fifo->reader && fifo->reader->state == TASK_BLOCKED &&
-                (fifo->flags & FIFO_IN_READ)) {
-            task_unblock(fifo->reader);
-        }
-        interrupt_restore_state(flags);
-        if (fifo_buf_avali(fifo->fifo) <= 0 && left_size > 0) {
-            if (fifo->flags & (IPC_NOWAIT << 24)) {
-                fifo->flags &= ~FIFO_IN_WRITE;
-                mutex_unlock(&fifo->mutex);
-                return -1;
-            }
-            mutex_unlock(&fifo->mutex);
-            task_block(TASK_BLOCKED);
-            mutex_lock(&fifo->mutex);
-        }
+    }
+    if (fifo->reader->state == TASK_BLOCKED &&
+        (fifo->flags & FIFO_IN_READ)) {
+        task_unblock(fifo->reader);
     }
     fifo->flags &= ~FIFO_IN_WRITE;
     mutex_unlock(&fifo->mutex);
     return wrsize;
 }
 
-/**
- * @fifoflg: 管道标志：
- *          IPC_NOWAIT：管道中没有数据则直接返回
- *          IPC_NOSYNC: 写者没有就绪就直接返回         
- * @return: 成功返回实际读取的数据量，失败返回-1
- */
-int fifo_read(int fifoid, void *buffer, size_t size, int fifoflg)
+int fifo_read(int fifoid, void *buffer, size_t size)
 {
     if (buffer == NULL || !size)
         return -1;
@@ -277,37 +271,37 @@ int fifo_read(int fifoid, void *buffer, size_t size, int fifoflg)
         printk(KERN_ERR "fifo_read: reader null!\n");
         return -1;
     }
-    if (fifo->flags & (IPC_NOERROR << 16))
-        if (fifo->reader != task_current) 
-            return -1;
+    if (fifo->flags & (IPC_NOERROR << 16) && (fifo->reader != task_current))
+        return -1;
     fifo->flags |= FIFO_IN_READ;
-    if (fifo->writer == NULL) {
-        if (fifo->flags & (IPC_NOSYNC << 16)) {
-            printk(KERN_DEBUG "fifo_read: don't need sync for reader.\n");  
-            return -1;
-        }
+    if (fifo->writer == NULL && (fifo->flags & (IPC_NOSYNC << 16))) {
+        printk(KERN_DEBUG "fifo_read: don't need sync for reader.\n");  
+        return -1;
     }
 
     mutex_lock(&fifo->mutex);
-    unsigned long flags;
-    interrupt_save_and_disable(flags);
-    if (fifo_buf_len(fifo->fifo) <= 0) {
+    int rdsize = 0;
+    int chunk;
+    while (fifo_buf_len(fifo->fifo) <= 0) {
         if (fifo->flags & (IPC_NOWAIT << 16)) {
             fifo->flags &= ~FIFO_IN_READ;
-            interrupt_restore_state(flags);
             mutex_unlock(&fifo->mutex);
             return -1;
         }
-        interrupt_restore_state(flags);
+        if (!fifo->writer || atomic_get(&fifo->writeref) <= 0) {
+            mutex_unlock(&fifo->mutex);
+            return -1;
+        }
+        if (exception_cause_exit(&task_current->exception_manager)) {
+            mutex_unlock(&fifo->mutex);
+            return -1;
+        }
         mutex_unlock(&fifo->mutex);
         task_block(TASK_BLOCKED);
         mutex_lock(&fifo->mutex);
-        interrupt_save_and_disable(flags);
     }
 
-    interrupt_restore_state(flags);
-    int rdsize = 0;
-    int chunk = MIN(size, FIFO_SIZE);
+    chunk = MIN(size, FIFO_SIZE);
     chunk = MIN(chunk, fifo_buf_len(fifo->fifo));
     chunk = fifo_buf_get(fifo->fifo, buffer, chunk);
     rdsize += chunk;
@@ -315,7 +309,6 @@ int fifo_read(int fifoid, void *buffer, size_t size, int fifoflg)
             (fifo->flags & FIFO_IN_WRITE)) {
         task_unblock(fifo->writer);
     }
-
     fifo->flags &= ~FIFO_IN_READ;
     mutex_unlock(&fifo->mutex);
     return rdsize;
@@ -387,7 +380,7 @@ int fifo_ctl(int fifoid, unsigned int cmd, unsigned long arg)
     return retval;
 }
 
-int fifo_grow(int fifoid)
+int fifo_incref(int fifoid)
 {
     fifo_t *fifo;
     semaphore_down(&fifo_mutex);
@@ -413,11 +406,37 @@ int fifo_grow(int fifoid)
     return -1;
 }
 
-void fifo_fifo()
+int fifo_decref(int fifoid)
+{
+    fifo_t *fifo;
+    semaphore_down(&fifo_mutex);
+    fifo = fifo_find_by_id(fifoid);
+    if (fifo) {
+        mutex_lock(&fifo->mutex);
+        if (task_current == fifo->reader && atomic_get(&fifo->readref) > 0) {
+            atomic_dec(&fifo->readref);
+        } else if (task_current == fifo->writer && atomic_get(&fifo->writeref) > 0) {
+            atomic_dec(&fifo->writeref);
+        } else {  
+            pr_dbg("[FIFO]: %s: %s: not reader or writer!\n", __func__, task_current->name);
+            mutex_unlock(&fifo->mutex);
+            semaphore_up(&fifo_mutex);        
+            return -1;
+        }
+        mutex_unlock(&fifo->mutex);
+        semaphore_up(&fifo_mutex);        
+        return 0;
+    }
+    pr_dbg("[FIFO]: %s: %s: fifo not found!\n", __func__, task_current->name);
+    semaphore_up(&fifo_mutex);
+    return -1;
+}
+
+void fifo_init()
 {
     fifo_table = (fifo_t *)mem_alloc(sizeof(fifo_t) * FIFO_NR);
     if (fifo_table == NULL)
-        panic(KERN_EMERG "fifo_fifo: alloc mem for fifo_table failed! :(\n");
+        panic(KERN_EMERG "fifo_init: alloc mem for fifo_table failed! :(\n");
     
     int i;
     for (i = 0; i < FIFO_NR; i++) {
@@ -429,3 +448,100 @@ void fifo_fifo()
         fifo_table[i].writer = NULL;
     }
 }
+
+static int fifoif_open(void *name, int flags)
+{
+    char *p = (char *) name;
+    unsigned long new_flags = IPC_CREAT;
+    if (flags & O_CREAT) {
+        new_flags |= IPC_EXCL;
+    }
+    if (flags & O_RDWR) {
+        new_flags |= (IPC_READER | IPC_WRITER);
+    } else if (flags & O_RDONLY) {
+        new_flags |= IPC_READER;
+    } else if (flags & O_WRONLY) {
+        new_flags |= IPC_WRITER;
+    }
+    if (flags & O_NONBLOCK) {
+        new_flags |= IPC_NOWAIT;
+    }
+    int handle = fifo_get(p, new_flags);
+    if (handle < 0)
+        return -ENODEV;
+    return handle;
+}
+
+static int fifoif_close(int handle)
+{
+    return fifo_put(handle);
+}
+
+static int fifoif_incref(int handle)
+{
+    return fifo_incref(handle);
+}
+
+static int fifoif_decref(int handle)
+{
+    return fifo_decref(handle);
+}
+
+static int fifoif_read(int handle, void *buf, size_t size)
+{
+    return fifo_read(handle, buf, size);
+}
+
+static int fifoif_write(int handle, void *buf, size_t size)
+{
+    return fifo_write(handle, buf, size);
+}
+
+static int fifoif_ioctl(int handle, int cmd, unsigned long arg)
+{
+    return fifo_ctl(handle, cmd, arg);
+}
+
+static int fifoif_fcntl(int handle, int cmd, long arg)
+{
+    return fifo_ctl(handle, cmd, arg);
+}
+
+fsal_t fifoif = {
+    .name       = "fifoif",
+    .subtable   = NULL,
+    .mkfs       = NULL,
+    .mount      = NULL,
+    .unmount    = NULL,
+    .open       = fifoif_open,
+    .close      = fifoif_close,
+    .read       = fifoif_read,
+    .write      = fifoif_write,
+    .lseek      = NULL,
+    .opendir    = NULL,
+    .closedir   = NULL,
+    .readdir    = NULL,
+    .mkdir      = NULL,
+    .unlink     = NULL,
+    .rename     = NULL,
+    .ftruncate  = NULL,
+    .fsync      = NULL,
+    .state      = NULL,
+    .chmod      = NULL,
+    .fchmod     = NULL,
+    .utime      = NULL,
+    .feof       = NULL,
+    .ferror     = NULL,
+    .ftell      = NULL,
+    .fsize      = NULL,
+    .rewind     = NULL,
+    .rewinddir  = NULL,
+    .rmdir      = NULL,
+    .chdir      = NULL,
+    .ioctl      = fifoif_ioctl,
+    .fcntl      = fifoif_fcntl,
+    .fstat      = NULL,
+    .access     = NULL,
+    .incref     = fifoif_incref,
+    .decref     = fifoif_decref,
+};

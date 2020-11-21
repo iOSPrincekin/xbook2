@@ -5,15 +5,15 @@
 #include <arch/cpu.h>
 #include <sys/proc.h>
 #include <types.h>
-#include <xbook/list.h>
+#include "list.h"
 #include "vmm.h"
-#include "trigger.h"
 #include "timer.h"
 #include "alarm.h"
 #include "pthread.h"
 #include "fs.h"
 #include "msgpool.h"
 #include "spinlock.h"
+#include "exception.h"
 
 typedef enum {
     TASK_READY = 0,         /* 进程处于就绪状态 */
@@ -43,6 +43,7 @@ enum thread_flags {
     THREAD_FLAG_CANCEL_DISABLE      = (1 << 3),     /* 线程不能被取消 */
     THREAD_FLAG_CANCEL_ASYCHRONOUS  = (1 << 4),     /* 线程收到取消信号时立即退出 */
     THREAD_FLAG_CANCELED            = (1 << 5),     /* 线程已经标记上取消点 */
+    THREAD_FLAG_WAITLIST            = (1 << 6),     /* 在等待链表中 */
 };
 
 typedef struct {
@@ -64,7 +65,7 @@ typedef struct {
     struct vmm *vmm;                    
     list_t list;                        /* 处于所在队列的链表，就绪队列，阻塞队列等 */
     list_t global_list;                 /* 全局任务队列，用来查找所有存在的任务 */
-    triggers_t *triggers;               
+    exception_manager_t exception_manager;         
     timer_t sleep_timer;               
     alarm_t alarm;                      
     long errno;                         /* 错误码：用户多线程时用来标记每一个线程的错误码 */
@@ -95,7 +96,17 @@ extern volatile int task_init_done;
             pthread_exit((void *) THREAD_FLAG_CANCELED); \
         } \
     } while (0)
-      
+
+#define TASK_WAS_STOPPED(task) ((task)->state == TASK_STOPPED)
+
+#define TASK_NOT_READY(task) ((task)->state == TASK_BLOCKED || \
+        (task)->state == TASK_WAITING || \
+        (task)->state == TASK_STOPPED)
+
+#define TASK_ENTER_WAITLIST(task) (task)->flags |= THREAD_FLAG_WAITLIST
+#define TASK_LEAVE_WAITLIST(task) (task)->flags &= ~THREAD_FLAG_WAITLIST
+#define TASK_IN_WAITLIST(task) ((task)->flags & THREAD_FLAG_WAITLIST)
+
 void tasks_init();
 
 void task_init(task_t *task, char *name, uint8_t prio_level);
@@ -118,9 +129,11 @@ void task_set_timeslice(task_t *task, uint32_t timeslice);
 #define task_sleep() task_block(TASK_BLOCKED) 
 static inline void task_wakeup(task_t *task)
 {
-    if ((task->state == TASK_BLOCKED) || 
-        (task->state == TASK_WAITING) ||
-        (task->state == TASK_STOPPED)) {    
+    if (TASK_NOT_READY(task)) {
+        /* NOTICE: if in a waitlist, must del it. */
+        if (TASK_IN_WAITLIST(task)) {   
+            list_del_init(&task->list);
+        }
         task_unblock(task);
     }
 }
@@ -132,6 +145,7 @@ void task_start_user();
 unsigned long task_sleep_by_ticks(clock_t ticks);
 int task_count_children(task_t *parent);
 int task_do_cancel(task_t *task);
+pid_t task_get_pid(task_t *task);
 
 #define sys_sched_yeild     task_yeild
 pid_t sys_get_pid();

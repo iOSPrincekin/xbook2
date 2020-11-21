@@ -1,7 +1,6 @@
 #include <xbook/syscall.h>
 #include <xbook/process.h>
 #include <xbook/memspace.h>
-#include <xbook/trigger.h>
 #include <xbook/alarm.h>
 #include <xbook/clock.h>
 #include <xbook/mutexqueue.h>
@@ -30,10 +29,6 @@ void syscall_init()
     syscalls[SYS_WAITPID] = sys_waitpid;
     syscalls[SYS_GETPID] = sys_get_pid;
     syscalls[SYS_GETPPID] = sys_get_ppid;
-    syscalls[SYS_TRIGGER] = sys_trigger_handler;
-    syscalls[SYS_TRIGGERON] = sys_trigger_active;
-    syscalls[SYS_TRIGGERACT] = sys_trigger_action;
-    syscalls[SYS_TRIGRET] = sys_trigger_return;
     syscalls[SYS_SLEEP] = sys_sleep;
     syscalls[SYS_THREAD_CREATE] = sys_thread_create;
     syscalls[SYS_THREAD_EXIT] = sys_thread_exit;
@@ -45,8 +40,8 @@ void syscall_init()
     syscalls[SYS_THREAD_CANCELSTATE] = sys_thread_setcancelstate;
     syscalls[SYS_THREAD_CANCELTYPE] = sys_thread_setcanceltype;
     syscalls[SYS_SCHED_YEILD] = sys_sched_yeild;
-    syscalls[SYS_MUTEX_QUEUE_CREATE] = sys_mutex_queue_free;
-    syscalls[SYS_MUTEX_QUEUE_DESTROY] = sys_mutex_queue_alloc;
+    syscalls[SYS_MUTEX_QUEUE_CREATE] = sys_mutex_queue_alloc;
+    syscalls[SYS_MUTEX_QUEUE_DESTROY] = sys_mutex_queue_free;
     syscalls[SYS_MUTEX_QUEUE_WAIT] = sys_mutex_queue_wait;
     syscalls[SYS_MUTEX_QUEUE_WAKE] = sys_mutex_queue_wake;
     syscalls[SYS_HEAP] = sys_mem_space_expend_heap;
@@ -112,7 +107,7 @@ void syscall_init()
     syscalls[SYS_SHMGET] = sys_shmem_get;
     syscalls[SYS_SHMPUT] = sys_shmem_put;
     syscalls[SYS_SHMMAP] = sys_shmem_map;
-    syscalls[SYS_SHMUNMAP] = sys_shmem_unmap;
+    syscalls[SYS_SHMUNMAP] = sys_shhal_memio_unmap;
     syscalls[SYS_SEMGET] = sys_sem_get;
     syscalls[SYS_SEMPUT] = sys_sem_put;
     syscalls[SYS_SEMDOWN] = sys_sem_down;
@@ -121,8 +116,6 @@ void syscall_init()
     syscalls[SYS_MSGPUT] = sys_msgque_put;
     syscalls[SYS_MSGSEND] = sys_msgque_send;
     syscalls[SYS_MSGRECV] = sys_msgque_recv;
-    syscalls[SYS_TRIGPENDING] = sys_trigger_pending;
-    syscalls[SYS_TRIGPROCMASK] = sys_trigger_proc_mask;
     syscalls[SYS_LAYERNEW] = sys_new_layer;
     syscalls[SYS_LAYERDEL] = sys_del_layer;
     syscalls[SYS_LAYERZ] = sys_layer_z;
@@ -155,5 +148,22 @@ void syscall_init()
     syscalls[SYS_LAYERCOPYBMP] = sys_layer_copy_bitmap;
     syscalls[SYS_GGETICONPATH] = sys_gui_get_icon;
     syscalls[SYS_GSETICONPATH] = sys_gui_set_icon;
-    syscalls[SYS_PROBE] = sys_probe;
+    syscalls[SYS_PROBEDEV] = sys_probedev;
+    syscalls[SYS_EXPSEND] = sys_expsend;
+    syscalls[SYS_EXPCATCH] = sys_expcatch;
+    syscalls[SYS_EXPBLOCK] = sys_expblock;
+    syscalls[SYS_EXPRET] = sys_excetion_return;
+    syscalls[SYS_OPENDEV] = sys_opendev;
+    syscalls[SYS_OPENFIFO] = sys_openfifo;
+    
+}
+
+int syscall_error(uint32_t callno)
+{
+    if (callno >= SYSCALL_NR) {
+        printk(KERN_ERR "syscall: bad number %d, raise exception!\n", callno);
+        exception_raise(EXP_CODE_SYS);
+        return 1;
+    }
+    return 0;
 }

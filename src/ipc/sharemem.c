@@ -1,11 +1,13 @@
 #include <xbook/sharemem.h>
 #include <xbook/memcache.h>
 #include <xbook/debug.h>
+#include <xbook/safety.h>
 #include <string.h>
 #include <string.h>
 #include <xbook/memspace.h>
 #include <xbook/semaphore.h>
 #include <sys/ipc.h>
+#include <errno.h>
 
 share_mem_t *share_mem_table;
 DEFINE_SEMAPHORE(share_mem_mutex, 1);
@@ -182,7 +184,7 @@ void *share_mem_map(int shmid, void *shmaddr, int shmflg)
     return shmaddr;
 }
 
-int share_mem_unmap(const void *shmaddr, int shmflg)
+int share_hal_memio_unmap(const void *shmaddr, int shmflg)
 {
     if (!shmaddr) {
         return -1;
@@ -195,7 +197,7 @@ int share_mem_unmap(const void *shmaddr, int shmflg)
         addr = (unsigned long) shmaddr;
     mem_space_t *sp = mem_space_find(cur->vmm, addr);
     if (sp == NULL) {
-        printk(KERN_DEBUG "share_mem_unmap: not fond space\n");
+        printk(KERN_DEBUG "share_hal_memio_unmap: not fond space\n");
         return -1;
     }
     addr = addr_vir2phy(addr);
@@ -211,7 +213,7 @@ int share_mem_unmap(const void *shmaddr, int shmflg)
             atomic_dec(&shm->links);
         }
     } else {
-        printk(KERN_ERR "share_mem_unmap: do unmap at %x failed!\n", addr);
+        printk(KERN_ERR "share_hal_memio_unmap: do unmap at %x failed!\n", addr);
     }
     return retval;
 }
@@ -262,6 +264,10 @@ int share_mem_dec(int shmid)
 
 int sys_shmem_get(char *name, unsigned long size, unsigned long flags)
 {
+    if (!name)
+        return -EINVAL;
+    if (mem_copy_from_user(NULL, name, SHARE_MEM_NAME_LEN) < 0)
+        return -EINVAL;
     return share_mem_get(name, size, flags);
 }
 
@@ -272,12 +278,16 @@ int sys_shmem_put(int shmid)
 
 void *sys_shmem_map(int shmid, void *shmaddr, int shmflg)
 {
+    if (mem_copy_from_user(NULL, shmaddr, PAGE_SIZE) < 0)
+        return (void *) -1;
     return share_mem_map(shmid, shmaddr, shmflg);
 }
 
-int sys_shmem_unmap(const void *shmaddr, int shmflg)
+int sys_shhal_memio_unmap(const void *shmaddr, int shmflg)
 {
-    return share_mem_unmap(shmaddr, shmflg);
+    if (mem_copy_from_user(NULL, (void *)shmaddr, PAGE_SIZE) < 0)
+        return -EINVAL;
+    return share_hal_memio_unmap(shmaddr, shmflg);
 }
 
 void share_mem_init()

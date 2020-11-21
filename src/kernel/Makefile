@@ -9,3 +9,5 @@ SRC	+= walltime.c
 SRC	+= debug.c
 SRC	+= initcall.c
 SRC	+= time.c
+SRC	+= exception.c
+SRC	+= safety.c

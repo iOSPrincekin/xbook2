@@ -4,7 +4,7 @@
 #include <xbook/task.h>
 #include <xbook/process.h>
 #include <xbook/pthread.h>
-#include <xbook/trigger.h>
+#include <fsal/fd.h>
 
 static void adopt_children_to_init(task_t *parent)
 {

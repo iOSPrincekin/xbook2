@@ -31,8 +31,10 @@ int pthread_create(
     void * (*start_routine) (void *),
     void *arg
 ) {
-    if (!thread || !start_routine)
-        return EINVAL;
+    if (!thread || !start_routine) {
+        _set_errno(EINVAL);
+        return -1;
+    }
 
     pthread_attr_t default_attr;
     if (attr == NULL) {
@@ -42,7 +44,7 @@ int pthread_create(
         attr = &default_attr;
     }
     pid_t pid = syscall4(pid_t, SYS_THREAD_CREATE, attr, start_routine, arg, __pthread_entry);
-    if (pid == -1)
+    if (pid < 0)
         return -1;
     *thread = (pthread_t) pid;
     return 0;

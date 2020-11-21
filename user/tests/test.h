@@ -33,9 +33,20 @@ int xlibc_test(int argc,char *argv[]);
 int math_test(int argc, char *argv[]);
 
 int http_test(int argc, char **argv);
-int buddy_test(int argc,char *argv[]);
 int cjson_main(void);
 int pty_test(int argc, char *argv[]);
 int sleep_test(int argc, char *argv[]);
+int exp_test(int argc, char *argv[]);
+int fifo_test(int argc, char *argv[]);
+int sys_test(int argc, char *argv[]);
+int pthread_test(int argc, char *argv[]);
+
+int file_test(int argc, char *argv[]);
+
+static inline void sys_err(char *str)
+{
+    printf("sys err: %s\n", str);
+    exit(-1);
+}
 
 #endif // _TEST_H

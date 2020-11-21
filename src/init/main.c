@@ -30,7 +30,7 @@ int kernel_main(void)
     share_mem_init();
     msg_queue_init();
     sem_init();
-    fifo_fifo();
+    fifo_init();
     syscall_init();
     walltime_init();
     schedule_init();
@@ -42,7 +42,7 @@ int kernel_main(void)
     driver_framewrok_init();
     initcalls_exec();
 
-    init_fs();
+    file_system_init();
     init_gui();
     init_net();
     
