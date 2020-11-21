@@ -6,7 +6,7 @@
 #include <math.h>
 #include <gapi.h>
 #include <sys/input.h>
-#include <sys/trigger.h>
+#include <sys/exception.h>
 
 #include <sh_console.h>
 #include <sh_cursor.h>
@@ -700,7 +700,7 @@ int con_xmit_key(int kcode, int kmod)
     if (kmod & GKMOD_CTRL) {
         if (kcode == GK_C || kcode == GK_c) {
             if (shell_child_pid > 0)
-                triggeron(TRIGLSOFT, shell_child_pid);
+                expsend(shell_child_pid, EXP_CODE_INT);
                 
             return 0;   /* 特殊按键处理 */
         }

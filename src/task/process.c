@@ -34,16 +34,8 @@ static int proc_load_segment(int fd, unsigned long offset, unsigned long file_sz
         printk(KERN_ERR "proc_load_segment: mem_space_mmap failed!\n");
         return -1;
     }
-<<<<<<< HEAD
-    memset(vaddr_page, 0, occupy_pages * PAGE_SIZE);
-    sys_lseek(fd, offset, SEEK_SET);
-    uint8_t *buf = (uint8_t *)vaddr;
-    ssize_t file_size = (ssize_t) file_sz;
-    if (sys_read(fd, buf, file_size) != file_size) {
-=======
     kfile_lseek(fd, offset, SEEK_SET);
     if (kfile_read(fd, (void *)vaddr, file_sz) != file_sz) {
->>>>>>> purekern
         return -1;
     }
     return 0;

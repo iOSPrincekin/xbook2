@@ -10,13 +10,12 @@
 #include <sys/sys.h>
 #include <sys/vmm.h>
 #include <sys/time.h>
+#include <sys/exception.h>
 #include <arch/const.h>
 #include <time.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/trigger.h>
-
 /// 程序本地头文件
 #include <sh_cmd.h>
 #include <sh_console.h>
@@ -224,9 +223,9 @@ int execute_cmd(int argc, char **argv)
             }
 
         } else {    /* 子进程 */
-            /* 设置为忽略，避免在初始化过程中被打断 */
-            trigger(TRIGLSOFT, TRIG_IGN);
-
+            expblock(EXP_CODE_INT);
+            expblock(EXP_CODE_TERM);
+            
             /* 关闭不用的管道端口 */
             close(recv_pipe[0]);
             close(xmit_pipe[1]);
@@ -250,8 +249,9 @@ int execute_cmd(int argc, char **argv)
                 exit(pid);  /* 退出 */
             }
             close(xmit_pipe[0]);
-            /* 恢复默认触发 */
-            trigger(TRIGLSOFT, TRIG_DFL);
+            expunblock(EXP_CODE_INT);
+            expunblock(EXP_CODE_TERM);
+            
             /* 子进程执行程序 */
             if (execv((const char *) argv[0], (char *const *) argv) < 0)
                 printf("bosh: %s is a bad programe!\n", argv[0]);
@@ -421,16 +421,6 @@ int cmd_set(int argc, char **argv)
 #endif    
     return 0;
 }
-
-static const char *proc_print_status[] = {
-    "READY",
-    "RUNNING",
-    "BLOCKED",
-    "WAITING",
-    "STOPED",
-    "ZOMBIE",
-    "DIED"
-};
 
 int cmd_exit(int argc, char **argv)
 {

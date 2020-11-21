@@ -1332,16 +1332,11 @@ static int ide_probe(device_extension_t *ext, int id)
     ext->capabilities = ext->info->Capabilities0;
     ext->signature = ext->info->General_Config;
     ext->reserved = 1;	/* 设备存在 */
-<<<<<<< HEAD
-
-    // pr_dbg("probe IDE disk: base:%x irq:%d\n", channel->base, channel->irqno);
-=======
     ext->rwoffset = 0;
 #ifdef DEBUG_DRV
     dump_ide_extension(ext);
     pr_dbg("probe IDE disk: base:%x irq:%d\n", channel->base, channel->irqno);
 #endif
->>>>>>> purekern
     
     return 0;
 }

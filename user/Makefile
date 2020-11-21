@@ -34,9 +34,6 @@ MODULE      +=  rmdir
 MODULE      +=  touch
 MODULE      +=  tests
 MODULE      +=  hello
-<<<<<<< HEAD
 MODULE      +=  bosh
 MODULE      +=  gato
-=======
 MODULE      +=  osver
->>>>>>> purekern

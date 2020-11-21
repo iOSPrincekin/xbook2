@@ -382,9 +382,9 @@ static iostatus_t tty_enter(driver_object_t *driver)
         public->extensions[i] = extension;
         public->detach_kbd = 0; /* 键盘尚未分离 */
     }
-
+    #ifndef CONFIG_GRAPH
     kern_thread_start("tty", TASK_PRIO_LEVEL_NORMAL, tty_thread, public);
-
+    #endif
     return status;
 }
 
