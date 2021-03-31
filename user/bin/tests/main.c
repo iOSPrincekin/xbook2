@@ -22,12 +22,15 @@ int main(int argc, char *argv[])
     // socket_test(argc, argv);
     // file_test2(argc, argv);
     //backtrace_test(argc, argv);
-    //video_test(argc, argv);
+    //fcntl_test(argc, argv);
     //signal_test(argc, argv);
     // proc_test(argc, argv);
     // port_comm_test(argc, argv);
     //gui_test(argc, argv);
-    view_test(argc, argv);
-
+    //file_test3(argc, argv);
+    // tty_test(argc, argv);
+    //id_test(argc, argv);
+    pty_test2(argc, argv);
+    printf("tests done!\n");
     return 0;
 }

@@ -66,7 +66,6 @@ develop/local/
 
 develop/rom/bin/
 develop/rom/sbin/
-develop/rom/usr/
 develop/rom/acct/
 develop/bochs/
 
@@ -86,10 +85,8 @@ recycle
 # need commit to git
 !scripts/fixdep.exe
 
-# system app
+# system bin
 user/sbin/init/init
-user/sbin/init/initg
-user/sbin/desktop/desktop
 user/sbin/login/login
 user/sbin/userctl/userctl
 user/sbin/service/service
@@ -99,25 +96,23 @@ user/serv/netserv/
 user/serv/testserv/testserv
 user/sbin/netserv/
 # user app
-
+user/sbin/netserv/netserv
 # /bin
 user/bin/cat/cat
-user/bin/cpuinfo/cpuinfo
-user/bin/echo/echo
+user/bin/cal/cal
 user/bin/cp/cp
+user/bin/cpuinfo/cpuinfo
 user/bin/date/date
+user/bin/echo/echo
 user/bin/ls/ls
 user/bin/mem/mem
 user/bin/mkdir/mkdir
 user/bin/mv/mv
+user/bin/uname/uname
 user/bin/ps/ps
 user/bin/rename/rename
 user/bin/rm/rm
 user/bin/rmdir/rmdir
-user/bin/touch/touch
-user/bin/trig/trig
-user/bin/osver/osver
-user/bin/xbrower/xbrower
 user/bin/sh/sh
 
 
@@ -147,3 +142,9 @@ user/bin/mp3player/mp3player
 user/bin/hello/hello
 user/bin/uname/
 user/bin/desktop/desktop
+user/bin/sys/sys
+user/bin/tests/tests
+user/bin/touch/touch
+user/bin/bash/bash
+user/bin/hello/hello
+user/bin/uview/uview
