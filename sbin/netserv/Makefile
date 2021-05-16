@@ -1,6 +1,8 @@
-X_LIBS		+= libxlibc.a libpthread.a libnetsocket.a
+X_LIBS		+= libxlibc.a libpthread.a
 
 X_INCDIRS	+= netserv/include netserv/lwip/include netserv/lwip/include/ipv4
+
+X_CFLAGS	+= -w
 
 NAME		:= netserv
 SRC			+= main.c 
@@ -8,6 +10,7 @@ SRC			+= netcard.c
 SRC			+= netmain.c 
 SRC			+= httpd.c 
 SRC			+= netremote.c 
+SRC			+= socket_udp.c
 SRC			+= lwip/ 
 
 define CUSTOM_TARGET_CMD

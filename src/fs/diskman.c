@@ -1,6 +1,7 @@
 #include <xbook/list.h>
 #include <xbook/diskman.h>
 #include <xbook/memalloc.h>
+#include <xbook/path.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -59,7 +60,7 @@ int disk_info_find(char *name)
     mutex_lock(&disk_manager_mutex);
     disk_info_t *disk;
     list_for_each_owner (disk, &disk_list_head, list) {
-        if (!strcmp(disk->virname, name) || !strcmp(disk->devent.de_name, name)) {
+        if (!strcmp(disk->devent.de_name, name)) {
             mutex_unlock(&disk_manager_mutex);
             return disk->solt;
         }
@@ -68,18 +69,32 @@ int disk_info_find(char *name)
     return -1;
 }
 
-disk_info_t *disk_info_find_info(char *name)
+/**
+ * 将devfs路径名字转换成设备名。
+ * devfs路径必须是DEVFS_PATH/xxx
+ * 因此需要返回xxx这个设备名
+ */
+static void *diskman_path_translate(const char *pathname)
 {
-    mutex_lock(&disk_manager_mutex);
-    disk_info_t *disk;
-    list_for_each_owner (disk, &disk_list_head, list) {
-        if (!strcmp(disk->virname, name)) {
-            mutex_unlock(&disk_manager_mutex);
-            return disk;
-        }
+    if (!pathname)
+        return NULL;
+    if (strncmp(pathname, (const char *) DEV_DIR_PATH, strlen(DEV_DIR_PATH)) != 0) {   /* 校验路径，不是设备文件系统就退出 */
+        return NULL;
     }
-    mutex_unlock(&disk_manager_mutex);
-    return NULL;
+    char *p = (char *) pathname;
+    p += strlen(DEV_DIR_PATH);
+    while (*p && *p == '/')
+        p++;
+    return p;
+}
+
+int disk_info_find_with_path(char *pathname)
+{
+    /* 将路径转换为设备名 */
+    char *name = diskman_path_translate((const char *)pathname);
+    if (!name)
+        return -1;
+    return disk_info_find(name);
 }
 
 static int disk_manager_open(int solt)

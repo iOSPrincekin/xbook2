@@ -72,6 +72,8 @@ develop/rom/sbin/
 develop/rom/acct/
 develop/bochs/
 
+!develop/rom/tmp/d.img
+
 # linux fixdep
 libs/fixdep
 sbin/fixdep
@@ -120,5 +122,9 @@ bin/wavplayer/wavplayer
 bin/grep/grep
 bin/cat2/cat2
 bin/archfetch/archfetch
+bin/mount/mount
+bin/unmount/unmount
+bin/mkfs/mkfs
+bin/losetup/losetup
 
 # ====xbook2 kernel ignore end====

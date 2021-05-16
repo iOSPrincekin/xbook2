@@ -28,6 +28,8 @@
 #define DISKIO_CLEAR        DEVCTL_CODE('d', 2)
 #define DISKIO_SETOFF       DEVCTL_CODE('d', 3)
 #define DISKIO_GETOFF       DEVCTL_CODE('d', 4)
+#define DISKIO_SETUP        DEVCTL_CODE('d', 5)
+#define DISKIO_SETDOWN      DEVCTL_CODE('d', 6)
 
 /* tty */
 #define TTYIO_CLEAR         CONIO_CLEAR
@@ -111,5 +113,7 @@ typedef struct _video_info {
 #define VIEWIO_SETMONITOR   DEVCTL_CODE('v', 26)
 #define VIEWIO_SETWINMAXIMRECT   DEVCTL_CODE('v', 27)
 #define VIEWIO_GETWINMAXIMRECT   DEVCTL_CODE('v', 28)
+#define VIEWIO_GETMOUSESTATE        DEVCTL_CODE('v', 29)
+#define VIEWIO_GETMOUSESTATEINFO    DEVCTL_CODE('v', 30)
 
 #endif   /* _SYS_IOCTL_H */

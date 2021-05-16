@@ -583,7 +583,7 @@ static int fifoif_write(int idx, void *buf, size_t size)
     return fifo_write(ext->handle, buf, size);
 }
 
-static int fifoif_ioctl(int idx, int cmd, unsigned long arg)
+static int fifoif_ioctl(int idx, int cmd, void *arg)
 {
     if (FSAL_BAD_FILE_IDX(idx))
         return -1;
@@ -591,7 +591,7 @@ static int fifoif_ioctl(int idx, int cmd, unsigned long arg)
     if (FSAL_BAD_FILE(fp)) 
         return -1;
     fifofs_file_extention_t *ext = (fifofs_file_extention_t *) fp->extension;
-    return fifo_ctl(ext->handle, cmd, arg);
+    return fifo_ctl(ext->handle, cmd, (unsigned long) arg);
 }
 
 static int fifoif_fcntl(int handle, int cmd, long arg)
@@ -671,11 +671,7 @@ static int fsal_fifofs_mount(char *source, char *target, char *fstype, unsigned 
         errprint("mount fifofs type %s failed!\n", fstype);
         return -1;
     }
-    /*
-    if (kfile_mkdir(FIFO_DIR_PATH, 0) < 0)
-        warnprint("fsal create dir %s failed or dir existed!\n", FIFO_DIR_PATH);
-    */
-    if (fsal_path_insert(FIFOFS_PATH, target, &fifofs_fsal)) {
+    if (fsal_path_insert(source, FIFOFS_PATH, target, &fifofs_fsal)) {
         dbgprint("%s: %s: insert path %s failed!\n", FS_MODEL_NAME,__func__, target);
         return -1;
     }
@@ -688,9 +684,6 @@ static int fsal_fifofs_unmount(char *path, unsigned long flags)
         dbgprint("%s: %s: remove path %s failed!\n", FS_MODEL_NAME,__func__, path);
         return -1;
     }
-    /*
-    if (kfile_rmdir(FIFO_DIR_PATH) < 0)
-        warnprint("fsal remove dir %s failed or dir existed!\n", FIFO_DIR_PATH);*/
     return 0;
 }
 

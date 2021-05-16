@@ -174,7 +174,6 @@
         "signal.h": "c",
         "exception.h": "c",
         "bootmem.h": "c",
-        "netsocket.h": "c",
         "fatfs.h": "c",
         "file.h": "c",
         "istream": "c",
@@ -182,6 +181,19 @@
         "sconf.h": "c",
         "wait.h": "c",
         "lib.h": "c",
-        "bitmap.h": "c"
+        "bitmap.h": "c",
+        "getopt.h": "c",
+        "memalloc.h": "c",
+        "diskman.h": "c",
+        "mount.h": "c",
+        "account.h": "c",
+        "ip_addr.h": "c",
+        "tcp.h": "c",
+        "sys.h": "c",
+        "ip.h": "c",
+        "socket_udp.h": "c",
+        "fifo.h": "c",
+        "sockcall.h": "c",
+        "msgpool.h": "c"
     }
 }

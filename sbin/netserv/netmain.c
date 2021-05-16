@@ -12,8 +12,9 @@
 #include <netserv.h>
 #include <pthread.h>
 #include <sys/lpc.h>
-#include <net.client.h>
 #include <stdlib.h>
+
+#include "socket_udp.h"
 
 /* lwip interface */
 extern err_t ethernetif_init(struct netif *netif);
@@ -33,7 +34,7 @@ void lwip_init_task(void)
     tcpip_init(NULL, NULL);
 #endif
     IP4_ADDR(&ipaddr, 192,168,0,105);
-    IP4_ADDR(&gateway, 192,168,0,104);
+    IP4_ADDR(&gateway, 192,168,0,1);
     IP4_ADDR(&netmask, 255,255,0, 0);
 #if NO_SYS == 1
     netif_add(&lwip_netif, &ipaddr, &netmask, &gateway, NULL, ethernetif_init, ethernet_input);
@@ -48,7 +49,8 @@ extern bool netserv_echo_main(uint32_t code, lpc_parcel_t data, lpc_parcel_t rep
 
 static void *netserv_thread(void *arg)
 {
-    lpc_echo(LPC_ID_NET, netserv_echo_main);
+    printf("netserv thread: start:%d\n", pthread_self());
+    lpc_echo_group(LPC_ID_NET, netserv_echo_main);
     return NULL;
 }
 
@@ -61,9 +63,15 @@ void network_init(void)
     }
     lwip_init_task();
     httpserver_init();
+    //socket_examples_init();
 
+    /* 多个线程来检测端口是否有请求，然后并对请求作出应答 */
     pthread_t thread;
     pthread_create(&thread, NULL, netserv_thread, NULL);
+    
+    pthread_t thread1;
+    pthread_create(&thread1, NULL, netserv_thread, NULL);
+    
     while(1) {
         ethernetif_input(&lwip_netif);
         //todo: add your own user code here
@@ -71,4 +79,3 @@ void network_init(void)
         sched_yield();
     }
 }
-

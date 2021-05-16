@@ -37,9 +37,6 @@
 #define LWIP_NETCONN              (NO_SYS==0)
 
 #define MEM_ALIGNMENT           4
-#define MEM_SIZE               10240
-
-#define TCP_SND_BUF             2048
 
 /* use os's timeval */
 #define LWIP_TIMEVAL_PRIVATE 0
@@ -56,6 +53,21 @@
 /* 使用系统的内存分配 */
 #define MEM_LIBC_MALLOC 1
 
-#define MEMP_NUM_NETCONN 10 //能够同时激活的超时连接数目(NO_SYS==0有戏)
+#define MEMP_NUM_NETCONN 10 //能够同时激活的超时连接数目(NO_SYS==0有效)
+
+#define MEMP_NUM_NETBUF                 (MEMP_NUM_NETCONN)
+
+#define MEMP_NUM_UDP_PCB 10
+
+#define LWIP_TCPIP_CORE_LOCKING 1
+
+#define LWIP_SO_RCVTIMEO 1
+
+/* enable loopback */
+#define LWIP_NETIF_LOOPBACK 1
+
+#define LWIP_HAVE_LOOPIF 1
+
+#define LWIP_LOOPBACK_MAX_PBUFS 4
 
 #endif /* __LWIPOPTS_H__ */
