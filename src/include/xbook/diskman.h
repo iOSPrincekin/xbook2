@@ -31,6 +31,6 @@ int disk_probe_device(device_type_t type);
 void disk_info_print();
 int disk_manager_init();
 int disk_info_find(char *name);
-disk_info_t *disk_info_find_info(char *name);
+int disk_info_find_with_path(char *pathname);
 
 #endif   /* _XBOOK_DISKMAN_H */

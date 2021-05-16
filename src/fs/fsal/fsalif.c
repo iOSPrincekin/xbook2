@@ -519,7 +519,7 @@ static int fsalif_chdir(char *path)
     return fsal->chdir(new_path);
 }
 
-static int fsalif_ioctl(int idx, int cmd, unsigned long arg)
+static int fsalif_ioctl(int idx, int cmd, void *arg)
 {
     if (FSAL_BAD_FILE_IDX(idx))
         return -1;
@@ -567,14 +567,20 @@ int fsalif_mount(
     if (source == NULL || target == NULL || fstype == NULL)
         return -1;
     
-    if (disk_info_find((char *) source) < 0) {
+    if (disk_info_find_with_path((char *) source) < 0) {
         keprint(PRINT_ERR "[%s] %s: source %s not found!\n", FS_MODEL_NAME, __func__, source);
         return -1;
     }
+    
     if (fsal_path_find((void *) target, 0) != NULL) {
         keprint(PRINT_ERR "[%s] %s: target %s had mounted!\n", FS_MODEL_NAME, __func__, target);
         return -1;
     }
+
+    if (!strcmp("auto", fstype)) {  /* 如果是auto，选择默认文件系统 */
+        fstype = FSAL_FSTYPE_DEFAULT;
+    }
+
     fsal_t *fsal = fstype_find((char *)fstype);
     if (fsal == NULL) {
         keprint("[%s] %s: filesystem type %s not found!\n", FS_MODEL_NAME, __func__, fstype);
@@ -617,9 +623,12 @@ int fsalif_mkfs(
 ) {
     if (source == NULL || fstype == NULL)
         return -1;
-    if (disk_info_find(source) < 0) {
+    if (disk_info_find_with_path(source) < 0) {
         keprint(PRINT_ERR "[%s] %s: source %s not found!\n", FS_MODEL_NAME, __func__, source);
         return -1;
+    }
+    if (!strcmp("auto", fstype)) {  /* 如果是auto，选择默认文件系统 */
+        fstype = FSAL_FSTYPE_DEFAULT;
     }
     fsal_t *fsal = fstype_find((char *)fstype);
     if (fsal == NULL) {

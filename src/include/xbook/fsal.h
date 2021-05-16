@@ -46,7 +46,7 @@ typedef struct {
     int (*rewinddir)(int );
     int (*rmdir)(char *);
     int (*chdir)(char *);
-    int (*ioctl)(int, int, unsigned long);
+    int (*ioctl)(int, int, void *);
     int (*fcntl)(int, int, long);
     int (*fstat)(int, void *);
     int (*access)(const char *, int);
@@ -61,7 +61,8 @@ typedef struct {
 extern fsal_t fsif;
 extern fsal_t pipeif_rd;
 extern fsal_t pipeif_wr;
-// extern fsal_t fifoif;
+extern fsal_t netif_fsal;
+
 int fsal_init();
 
 #define INVALID_FD_TYPE(fd, type) (!((fd)->flags & type))

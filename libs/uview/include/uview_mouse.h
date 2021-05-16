@@ -19,6 +19,7 @@ typedef enum {
     UVIEW_MOUSE_DRESIZE2,          /* 对角线调整大小2(斜下) */
     UVIEW_MOUSE_RESIZEALL,         /* 移动 */
     UVIEW_MOUSE_HAND,              /* 手 */
+    UVIEW_MOUSE_INVISIBLE,         /* 不可见状态 */
     UVIEW_MOUSE_STATE_NR,
 } uview_mouse_state_t;
 
@@ -31,5 +32,12 @@ typedef struct {
 
 int uview_set_mouse_state(int vfd, uview_mouse_state_t state);
 int uview_set_mouse_state_info(int vfd, uview_mouse_state_info_t *info);
+int uview_get_mouse_state(int vfd, uview_mouse_state_t *state);
+int uview_get_mouse_state_info(int vfd, uview_mouse_state_info_t *info);
+
+int uview_set_mouse_state_noview(uview_mouse_state_t state);
+int uview_set_mouse_state_info_noview(uview_mouse_state_info_t *info);
+int uview_get_mouse_state_noview(uview_mouse_state_t *state);
+int uview_get_mouse_state_info_noview(uview_mouse_state_info_t *info);
 
 #endif /* _UVIEW_MOUSE_H */

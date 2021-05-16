@@ -15,6 +15,7 @@
 #include <xbook/pipe.h>
 #include <xbook/safety.h>
 #include <xbook/account.h>
+#include <xbook/dir.h>
 #include <sys/ipc.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -37,8 +38,9 @@ int sys_open(const char *path, int flags)
     if (!account_selfcheck_permission((char *)path, PERMISION_ATTR_FILE)) {
         return -EPERM;
     }
-
-    int handle = fsif.open((void *)path, flags);
+    char abs_path[MAX_PATH] = {0};
+    build_path(path, abs_path);
+    int handle = fsif.open((void *)abs_path, flags);
     if (handle < 0)
         return -ENOFILE;
     return local_fd_install(handle, FILE_FD_NORMAL);
@@ -136,7 +138,7 @@ int sys_ioctl(int fd, int cmd, void *arg)
         return -EINVAL;
     if (!ffd->fsal->ioctl)
         return -ENOSYS;
-    return ffd->fsal->ioctl(ffd->handle, cmd, (unsigned long )arg);
+    return ffd->fsal->ioctl(ffd->handle, cmd, arg);
 }
 
 int sys_fastio(int fd, int cmd, void *arg)
@@ -173,10 +175,14 @@ int sys_fcntl(int fd, int cmd, long arg)
         break;
     case F_GETFL:
         /* TODO: return file flags */
-        return 0;
+        
+        break;
     case F_SETFL:
         /* TODO: set file flags */
-        break;
+        /* set flags real */
+        if (!ffd->fsal->fcntl)
+            return -ENOSYS;
+        return ffd->fsal->fcntl(ffd->handle, cmd, arg);
     default:
         break;
     }
@@ -217,7 +223,9 @@ int sys_access(const char *path, int mode)
     if (!account_selfcheck_permission((char *)path, PERMISION_ATTR_FILE)) {
         return -EPERM;
     }
-    return fsif.access(path, mode);
+    char abs_path[MAX_PATH] = {0};
+    build_path(path, abs_path);
+    return fsif.access(abs_path, mode);
 }
 
 int sys_unlink(const char *path)
@@ -229,7 +237,9 @@ int sys_unlink(const char *path)
     if (!account_selfcheck_permission((char *)path, PERMISION_ATTR_FILE)) {
         return -EPERM;
     }
-    return fsif.unlink((char *) path);
+    char abs_path[MAX_PATH] = {0};
+    build_path(path, abs_path);
+    return fsif.unlink((char *) abs_path);
 }
 
 int sys_ftruncate(int fd, off_t offset)
@@ -283,7 +293,9 @@ int sys_stat(const char *path, struct stat *buf)
     if (!account_selfcheck_permission((char *)path, PERMISION_ATTR_FILE)) {
         return -EPERM;
     }
-    return fsif.state((char *) path, buf);
+    char abs_path[MAX_PATH] = {0};
+    build_path(path, abs_path);
+    return fsif.state((char *) abs_path, buf);
 }
 
 int sys_fstat(int fd, struct stat *buf)
@@ -309,7 +321,9 @@ int sys_chmod(const char *path, mode_t mode)
     if (!account_selfcheck_permission((char *)path, PERMISION_ATTR_FILE)) {
         return -EPERM;
     }
-    return fsif.chmod((char *) path, mode);
+    char abs_path[MAX_PATH] = {0};
+    build_path(path, abs_path);
+    return fsif.chmod((char *) abs_path, mode);
 }
 
 int sys_fchmod(int fd, mode_t mode)
@@ -331,7 +345,9 @@ int sys_mkdir(const char *path, mode_t mode)
     if (!account_selfcheck_permission((char *)path, PERMISION_ATTR_FILE)) {
         return -EPERM;
     }
-    return fsif.mkdir((char *) path, mode);
+    char abs_path[MAX_PATH] = {0};
+    build_path(path, abs_path);
+    return fsif.mkdir((char *) abs_path, mode);
 }
 
 int sys_rmdir(const char *path)
@@ -343,7 +359,9 @@ int sys_rmdir(const char *path)
     if (!account_selfcheck_permission((char *)path, PERMISION_ATTR_FILE)) {
         return -EPERM;
     }
-    return fsif.rmdir((char *) path);
+    char abs_path[MAX_PATH] = {0};
+    build_path(path, abs_path);
+    return fsif.rmdir((char *) abs_path);
 }
 
 int sys_rename(const char *source, const char *target)
@@ -360,7 +378,11 @@ int sys_rename(const char *source, const char *target)
     if (!account_selfcheck_permission((char *)target, PERMISION_ATTR_FILE)) {
         return -EPERM;
     }
-    return fsif.rename((char *) source, (char *) target);
+    char abs_source[MAX_PATH] = {0};
+    build_path(source, abs_source);
+    char abs_target[MAX_PATH] = {0};
+    build_path(target, abs_target);
+    return fsif.rename((char *) abs_source, (char *) abs_target);
 }
 
 int sys_chdir(const char *path)
@@ -369,7 +391,6 @@ int sys_chdir(const char *path)
         return -EINVAL;
     if (mem_copy_from_user(NULL, (void *) path, MAX_PATH) < 0)
         return -EINVAL;
-
     task_t *cur = task_current;
     if (!cur->fileman)
         return -EINVAL;
@@ -414,7 +435,9 @@ dir_t sys_opendir(const char *path)
     if (!account_selfcheck_permission((char *)path, PERMISION_ATTR_FILE)) {
         return -EPERM;
     }
-    return fsif.opendir((char *) path);
+    char abs_path[MAX_PATH] = {0};
+    build_path(path, abs_path);
+    return fsif.opendir((char *) abs_path);
 }
 
 int sys_closedir(dir_t dir)
@@ -557,8 +580,11 @@ int sys_mount(
     if (!account_selfcheck_permission((char *)target, PERMISION_ATTR_FILE)) {
         return -EPERM;
     }
-
-    return fsif.mount(source, target, fstype, mountflags);
+    char abs_source[MAX_PATH] = {0};
+    build_path(source, abs_source);
+    char abs_target[MAX_PATH] = {0};
+    build_path(target, abs_target);
+    return fsif.mount(abs_source, abs_target, fstype, mountflags);
 }
 
 int sys_unmount(char *path, unsigned long flags)
@@ -570,7 +596,9 @@ int sys_unmount(char *path, unsigned long flags)
     if (!account_selfcheck_permission((char *)path, PERMISION_ATTR_FILE)) {
         return -EPERM;
     }
-    return fsif.unmount(path, flags);
+    char abs_path[MAX_PATH] = {0};
+    build_path(path, abs_path);
+    return fsif.unmount(abs_path, flags);
 }
 
 int sys_mkfs(char *source,         /* 需要创建FS的设备 */
@@ -586,7 +614,9 @@ int sys_mkfs(char *source,         /* 需要创建FS的设备 */
     if (!account_selfcheck_permission((char *)source, PERMISION_ATTR_DEVICE)) {
         return -EPERM;
     }
-    return fsif.mkfs(source, fstype, flags);
+    char abs_source[MAX_PATH] = {0};
+    build_path(source, abs_source);
+    return fsif.mkfs(abs_source, fstype, flags);
 }
 
 int sys_probedev(const char *name, char *buf, size_t buflen)
