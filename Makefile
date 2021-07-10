@@ -214,3 +214,7 @@ ifeq ($(HOSTOS),macos)
 else
 		$(QEMU) -S -gdb tcp::10001,ipv4 $(QEMU_ARGUMENT)
 endif
+
+bochs: 	
+	$(RM) -rf $(IMAGE_DIR)/*.img.lock
+	bochs -f bochsrc.linux
