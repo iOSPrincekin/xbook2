@@ -4,9 +4,11 @@
 #include "fsal.h"
 #include <xbook/task.h>
 
-#define FSAL_FILE_FD_IS_BAD   (1 << 31)    /* alloced */
+#define FILE_FD_IS_USED   (1 << 31)    /* alloced */
 #define FILE_FD_NORMAL  0X01    /* is normal file */
+#ifdef CONFIG_NET
 #define FILE_FD_SOCKET  0X04    /* is a socket */
+#endif
 #define FILE_FD_PIPE0   0X10    /* is a pipe0: read */
 #define FILE_FD_PIPE1   0X20    /* is a pipe1: write */
 

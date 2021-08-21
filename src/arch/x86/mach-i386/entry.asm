@@ -5,6 +5,7 @@
 
 extern kernel_main
 extern arch_init
+extern acpi_init
 extern setup_paging
 
 global kernel_start
@@ -24,13 +25,19 @@ kernel_start:
 	mov byte [TEXT_START_ADDR_PHY+160*4+9], 0X07
 	mov byte [TEXT_START_ADDR_PHY+160*4+10], 'L'
 	mov byte [TEXT_START_ADDR_PHY+160*4+11], 0X07
+
+	; It's better to initialize ACPI before setup pageing
+	call acpi_init
     ; setup pageing, runing in virtual address
     call setup_paging
 
+%ifndef GDB
     ; set eip & esp to high addr
     xor ebp, ebp
     jmp .virtual_addr + KERN_BASE_VIR_ADDR
-.virtual_addr:    
+.virtual_addr:   
+%endif
+
     mov esp, KERNEL_STACK_TOP_VIR
     
     mov byte [TEXT_START_ADDR_VIR+160*5+0], 'P'

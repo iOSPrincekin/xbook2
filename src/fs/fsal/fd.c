@@ -133,7 +133,7 @@ int fsal_fd_alloc(int basefd)
     int i;
     for (i = basefd; i < LOCAL_FILE_OPEN_NR; i++) {
         if (cur->fileman->fds[i].flags == 0) {
-            cur->fileman->fds[i].flags = FSAL_FILE_FD_IS_BAD;
+            cur->fileman->fds[i].flags = FILE_FD_IS_USED;
             cur->fileman->fds[i].handle = -1;
             cur->fileman->fds[i].offset = 0;
             cur->fileman->fds[i].fsal = NULL;
@@ -177,9 +177,11 @@ void filefd_set_fsal(file_fd_t *fd, unsigned int flags)
     case FILE_FD_PIPE1:
         fd->fsal = &pipeif_wr;
         break;
+#ifdef CONFIG_NET
     case FILE_FD_SOCKET:
         fd->fsal = &netif_fsal;
         break;
+#endif
     default:
         fd->fsal = NULL;
         break;

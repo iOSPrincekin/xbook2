@@ -7,10 +7,20 @@
 #include <stdint.h>
 #include <xbook/list.h>
 #include <xbook/spinlock.h>
+#include <sys/select.h>
+#include <sys/time.h>
 
 #define FS_MODEL_NAME  "fsal"
 
 #define LOCAL_FILE_OPEN_NR  128
+
+/* 当需要从用户态复制数据时，需要一个临时缓冲区，这指明了缓冲区的大小 */
+#define FSIF_RW_BUF_SIZE    512
+
+/* 当需要从用户态复制数据时，需要将数据分词多个块进行读写 */
+#define FSIF_RW_CHUNK_SIZE  8192
+
+typedef int (*select_t)(int , fd_set *, fd_set *, fd_set *, struct timeval *);
 
 typedef struct {
     list_t list;                    /* 系统抽象的链表 */
@@ -18,7 +28,7 @@ typedef struct {
     char **subtable;                /* 子系统表 */
     int (*mkfs)(char *, char *, unsigned long );
     int (*mount)(char *, char *, char *, unsigned long );
-    int (*unmount)(char *, unsigned long );
+    int (*unmount)(char *, char *, unsigned long );
     int (*open)(void *, int );
     int (*close)(int );
     int (*read)(int , void *, size_t );
@@ -54,6 +64,7 @@ typedef struct {
     int (*decref)(int);
     void *(*mmap)(int , void *, size_t, int, int, off_t);
     int (*fastio)(int, int, void *);
+    select_t select;
     void *extention;
 } fsal_t;
 
@@ -61,7 +72,9 @@ typedef struct {
 extern fsal_t fsif;
 extern fsal_t pipeif_rd;
 extern fsal_t pipeif_wr;
+#ifdef CONFIG_NET
 extern fsal_t netif_fsal;
+#endif
 
 int fsal_init();
 

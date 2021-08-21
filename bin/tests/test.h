@@ -25,7 +25,10 @@ static inline void sys_err(char *str)
     printf("sys err: %s\n", str);
     exit(-1);
 }
-
+int file_test4(int argc, char *argv[]);
+int socket_ifconfig(int argc, char *argv[]);
+int chargen_test(int argc, char *argv[]);
+int select_test(int argc, char *argv[]);
 int pipe_test(int argc, char *argv[]);
 int shm_test(int argc, char *argv[]);
 int xlibc_test(int argc,char *argv[]);
