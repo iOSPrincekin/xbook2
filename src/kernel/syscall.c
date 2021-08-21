@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <dirent.h>
+#include <arch/misc.h>
 
 syscall_t syscalls[SYSCALL_NR];
 
@@ -27,7 +28,8 @@ typedef unsigned long (*syscall_func_t)(
     unsigned long,
     unsigned long,
     unsigned long,
-    void *); 
+    unsigned long,
+    void *);
 
 void syscall_default()
 {
@@ -70,8 +72,8 @@ void syscall_init()
     syscalls[SYS_UNID] = sys_unid;
     syscalls[SYS_TSTATE] = sys_tstate;
     syscalls[SYS_GETVER] = sys_getver;
-    syscalls[SYS_MSTATE] = sys_mstate;    
-    syscalls[SYS_USLEEP] = sys_usleep;    
+    syscalls[SYS_MSTATE] = sys_mstate;
+    syscalls[SYS_USLEEP] = sys_usleep;
     syscalls[SYS_OPEN] = sys_open;
     syscalls[SYS_CLOSE] = sys_close;
     syscalls[SYS_READ] = sys_read;
@@ -145,7 +147,13 @@ void syscall_init()
     syscalls[SYS_GETPGID] = sys_get_pgid;
     syscalls[SYS_SETPGID] = sys_set_pgid;
     syscalls[SYS_MKFIFO] = sys_mkfifo;
+    #ifdef CONFIG_NET
     syscalls[SYS_SOCKCALL] = sys_sockcall;
+    #endif
+    syscalls[SYS_REBOOT] = sys_reboot;
+    syscalls[SYS_SHUTDOWN] = sys_shutdown;
+    syscalls[SYS_SELECT] = sys_select;
+    
 }
 
 int syscall_check(uint32_t callno)
@@ -165,7 +173,10 @@ unsigned long syscall_dispatch(trap_frame_t *frame)
     cur->syscall_ticks_delta = sys_get_ticks();
     // TODO: call different func in different arch
     syscall_func_t func = (syscall_func_t)syscalls[frame->eax];
-    unsigned long retval = func(frame->ebx, frame->ecx, frame->esi,
+    if (func == (syscall_func_t)syscall_default) {
+        errprint("syscall nomber: %d\n", frame->eax);
+    }
+    unsigned long retval = func(frame->ebx, frame->ecx, frame->edx, frame->esi,
                             frame->edi, frame);
     /* 结束统计时间 */
     cur->syscall_ticks_delta = sys_get_ticks() - cur->syscall_ticks_delta;

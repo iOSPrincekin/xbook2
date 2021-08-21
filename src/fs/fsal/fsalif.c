@@ -326,12 +326,13 @@ static int fsalif_state(char *path, void *buf)
 
 static int fsalif_fstat(int idx, void *buf)
 {
-    if (FSAL_IS_BAD_DIR(idx))
-        return -1;
-    fsal_dir_t *pdir = FSAL_I2D(idx);
-    fsal_t *fsal = pdir->fsal;
-    if (fsal == NULL)
-        return -1;
+    if (FSAL_BAD_FILE_IDX(idx))
+        return -EINVAL;
+    fsal_file_t *fp = FSAL_IDX2FILE(idx);
+    fsal_t *fsal = fp->fsal;
+    if (fsal == NULL) {
+        return -EINVAL;
+    }
     if (!fsal->fstat)
         return -ENOSYS;
     return fsal->fstat(idx, buf);
@@ -361,12 +362,13 @@ static int fsalif_chmod(char *path, mode_t mode)
 
 static int fsalif_fchmod(int idx, mode_t mode)
 {
-    if (FSAL_IS_BAD_DIR(idx))
-        return -1;
-    fsal_dir_t *pdir = FSAL_I2D(idx);
-    fsal_t *fsal = pdir->fsal;
-    if (fsal == NULL)
-        return -1;
+    if (FSAL_BAD_FILE_IDX(idx))
+        return -EINVAL;
+    fsal_file_t *fp = FSAL_IDX2FILE(idx);
+    fsal_t *fsal = fp->fsal;
+    if (fsal == NULL) {
+        return -EINVAL;
+    }
     if (!fsal->fchmod)
         return -ENOSYS;
     return fsal->fchmod(idx, mode);
@@ -595,25 +597,29 @@ int fsalif_mount(
     return 0;
 }
 
-static int fsalif_unmount(char *path, unsigned long flags)
+/**
+ * origin_path: 原始路径，从用户传递进来的路径
+ * path: 转换后的路径，会物理路径
+ */
+static int fsalif_unmount(char *origin_path, char *path, unsigned long flags)
 {
-    if (path == NULL)
+    if (origin_path == NULL)
         return -1;
     
-    fsal_path_t *fpath = fsal_path_find(path, 0);
+    fsal_path_t *fpath = fsal_path_find(origin_path, 0);
     if (fpath == NULL) {
-        keprint(PRINT_ERR "path %s not found!\n", path);
+        keprint(PRINT_ERR "path %s not found!\n", origin_path);
         return -1;
     }
     fsal_t *fsal = fpath->fsal;
     if (fsal == NULL) {
-        keprint(PRINT_ERR "path %s fsal error!\n", path);
+        keprint(PRINT_ERR "path %s fsal error!\n", origin_path);
         return -1;
     }
     char new_path[MAX_PATH] = {0};
-    if (fsal_path_switch(fpath, new_path, path) < 0)
+    if (fsal_path_switch(fpath, new_path, origin_path) < 0)
         return -1;
-    return fsal->unmount(new_path, flags);
+    return fsal->unmount(origin_path, new_path, flags);
 }
 
 int fsalif_mkfs(
@@ -679,6 +685,14 @@ static void *fsalif_mmap(int idx, void *addr, size_t length, int prot, int flags
     return fsal->mmap(idx, addr, length, prot, flags, offset);
 }
 
+static int fsalif_select(int maxfdp, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
+    struct timeval *timeout)
+{
+    /* TODO: add fsalif select */
+    dbgprint("normal file select not support\n");
+    return -ENOSYS;
+}
+
 /* 文件的抽象层接口 */
 fsal_t fsif = {
     .name       = "fsif",
@@ -721,4 +735,5 @@ fsal_t fsif = {
     .fastwrite  = fsalif_fastwrite,
     .fastio     = fsalif_fastio,
     .mmap       = fsalif_mmap,
+    .select     = fsalif_select,
 };

@@ -194,6 +194,18 @@
         "socket_udp.h": "c",
         "fifo.h": "c",
         "sockcall.h": "c",
-        "msgpool.h": "c"
+        "msgpool.h": "c",
+        "sockets.h": "c",
+        "fd.h": "c",
+        "socketcache.h": "c",
+        "select.h": "c",
+        "netif.h": "c",
+        "in.h": "c",
+        "if.h": "c",
+        "sockioif.h": "c",
+        "if_arp.h": "c",
+        "if_ether.h": "c",
+        "sizes.h": "c",
+        "execinfo.h": "c"
     }
 }

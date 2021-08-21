@@ -989,6 +989,20 @@ ssize_t device_devctl(handle_t handle, unsigned int code, unsigned long arg)
     return -1;
 }
 
+int device_notify_to(char *devname, int tag, void *param)
+{
+    driver_object_t *drvobj;
+    list_for_each_owner (drvobj, &driver_list_head, list) {
+        if (!strcmp(devname, drvobj->name.text)) {
+            if (drvobj->device_be_notify_callback != NULL) {
+                drvobj->device_be_notify_callback(drvobj, tag, param);
+                return 0;
+            }
+        }
+    }
+    return -1;
+}
+
 int io_uninstall_driver(char *drvname)
 {
     driver_object_t *drvobj;
@@ -1169,7 +1183,7 @@ static int devif_write(int idx, void *buf, size_t size)
     return device_write(ext->handle, buf, size, DISKOFF_MAX);
 }
 
-static int devif_ioctl(int idx, int cmd, unsigned long arg)
+static int devif_ioctl(int idx, int cmd, void *arg)
 {
     if (FSAL_BAD_FILE_IDX(idx))
         return -1;
@@ -1177,7 +1191,7 @@ static int devif_ioctl(int idx, int cmd, unsigned long arg)
     if (FSAL_BAD_FILE(fp)) 
         return -1;
     devfs_file_extention_t *ext = (devfs_file_extention_t *) fp->extension;
-    return device_devctl(ext->handle, cmd, arg);
+    return device_devctl(ext->handle, cmd, (unsigned long) arg);
 }
 
 static int devif_lseek(int idx, off_t off, int whence)
@@ -1313,7 +1327,7 @@ static int fsal_devfs_mount(char *source, char *target, char *fstype, unsigned l
     return 0;
 }
 
-static int fsal_devfs_unmount(char *path, unsigned long flags)
+static int fsal_devfs_unmount(char *origin_path, char *path, unsigned long flags)
 {
     if (fsal_path_remove((void *) path)) {
         dbgprint("%s: %s: remove path %s failed!\n", FS_MODEL_NAME,__func__, path);

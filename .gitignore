@@ -72,6 +72,7 @@ develop/rom/sbin/
 develop/rom/acct/
 develop/bochs/
 
+!develop/rom/boot/*.img
 !develop/rom/tmp/d.img
 
 # linux fixdep
@@ -80,8 +81,18 @@ sbin/fixdep
 bin/fixdep
 src/fixdep
 
-# linux tools 
+# linux tools
 tools/fatfs/fatfs
+
+# grub2 modules, img
+!tools/grub-2.04/boot/grub/i386-efi/*.mod
+!tools/grub-2.04/boot/grub/i386-efi/*.img
+!tools/grub-2.04/boot/grub/i386-pc/*.mod
+!tools/grub-2.04/boot/grub/i386-pc/*.img
+!tools/grub-2.04/boot/grub/x86_64-efi/*.mod
+!tools/grub-2.04/boot/grub/x86_64-efi/*.img
+tools/grub-2.04/efi/boot/bootia32.efi
+tools/grub-2.04/efi/boot/bootx64.efi
 
 # dir
 recycle
@@ -126,5 +137,11 @@ bin/mount/mount
 bin/unmount/unmount
 bin/mkfs/mkfs
 bin/losetup/losetup
+bin/poweroff/poweroff
+bin/reboot/reboot
+bin/httpd/httpd
+bin/ping/ping
+bin/telnet/telnet
+bin/ifconfig/ifconfig
 
 # ====xbook2 kernel ignore end====

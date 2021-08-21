@@ -19,7 +19,7 @@
 #endif
 
 /* 驱动状态：0~15位是内核使用，16~23位自定义 */
-#define IO_SUCCESS             0            /* 成功 */
+#define IO_SUCCESS             0           /* 成功 */
 #define IO_FAILED              (1 << 0)    /* 失败 */        
 #define IO_PENDING             (1 << 1)    /* 未决 */
 #define IO_NOWAIT              (1 << 2)    /* 不需要等待 */
@@ -83,9 +83,10 @@ enum _io_request_flags {
 };
 
 enum _device_object_flags {
+    DO_NEITHER_IO               = 0,            /* 非缓冲区IO和非直接内存IO */
     DO_BUFFERED_IO              = (1 << 0),     /* 缓冲区IO */
     DO_DIRECT_IO                = (1 << 1),     /* 直接内存IO */
-    DO_DISPENSE                 = (1 << 2),     /* 分发位 */
+    DO_DISPENSE                 = (1 << 2),     /* 分发位，保留 */
 };
 
 typedef struct _driver_extension 
@@ -195,6 +196,9 @@ typedef struct _driver_object
     list_t device_list;                 /* 驱动下的设备构成的链表 */
     struct drver_extension *drver_extension; /* 驱动扩展 */
     string_t name;                      /* 名字 */
+
+    void(*device_be_notify_callback)(struct _driver_object *driver, int tag, void *param);
+
     /* 驱动控制函数 */
     driver_func_t driver_enter;
     driver_func_t driver_exit;
@@ -208,15 +212,15 @@ typedef struct _driver_object
 void driver_framewrok_init();
 
 iostatus_t io_create_device(
-    driver_object_t *driver,
-    unsigned long device_extension_size,
-    char *device_name,
-    device_type_t type,
-    device_object_t **device
+    driver_object_t *driver,                /* 驱动指针 */
+    unsigned long device_extension_size,    /* 设备扩展大小 */
+    char *device_name,                      /* 设备名字 */
+    device_type_t type,                     /* 设备类型 */
+    device_object_t **device                /* 创建完成后的设备指针 */
 );
 
 void io_delete_device(
-    device_object_t *device
+    device_object_t *device                 /* 要设备的对象 */
 );
 
 io_request_t *io_build_sync_request(
@@ -264,6 +268,7 @@ ssize_t device_devctl(handle_t handle, unsigned int code, unsigned long arg);
 int device_incref(handle_t handle);
 int device_decref(handle_t handle);
 void *device_mmap(handle_t handle, size_t length, int flags);
+int device_notify_to(char *devname, int tag, void *param);
 
 void dump_device_object(device_object_t *device);
 int device_probe_unused(const char *name, char *buf, size_t buflen);
