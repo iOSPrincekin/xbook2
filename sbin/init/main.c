@@ -3,11 +3,11 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 
-#define _HAS_LOGIN
+//#define _HAS_LOGIN
 // #define _HAS_NETSERV
 
 #define SHELL_PATH "/bin"
-#define SHELL_NAME "bash"
+#define SHELL_NAME "sh"
 
 int main(int argc, char *argv[])
 {

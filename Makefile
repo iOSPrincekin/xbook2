@@ -78,7 +78,7 @@ LOADER_BIN	= $(ARCH)/boot/myboot/loader.bin
 SETUP_BIN	= $(ARCH)/boot/myboot/setup.bin
 
 # set default boot mode
-export BOOT_MODE ?= $(BOOT_GRUB2_MODE)
+export BOOT_MODE ?= $(BOOT_LEGACY_MODE)
 
 # is efi mode? (y/n)
 EFI_BOOT_MODE ?= n
@@ -280,3 +280,7 @@ endif
 # 连接gdb server: target remote localhost:10001
 gdb:
 	$(GDB) $(KERNEL_ELF)
+
+bochs: 	
+	$(RM) -rf $(IMAGE_DIR)/*.img.lock
+	bochs -f bochsrc.linux
