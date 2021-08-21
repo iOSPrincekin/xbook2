@@ -14,7 +14,7 @@
 
 #define DEV_NAME "video"
 
-// #define DEBUG_DRV
+#define DEBUG_DRV
 
 /* 将显存映射到内核，在内核态也可以操作显存 */
 #define MAP_VRAM_TO_KERN    1

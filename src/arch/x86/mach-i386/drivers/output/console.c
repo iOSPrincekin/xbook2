@@ -8,7 +8,6 @@
 #include <arch/hw.h>
 #include <sys/ioctl.h>
 #include <stdio.h>
-
 #ifdef KERN_VBE_MODE
 #include <arch/module.h>
 #include <arch/page.h>
@@ -22,7 +21,7 @@
 
 #define MAX_CONSOLE_NR  8   /* 8个控制台 */
 
-// #define DEBUG_DRV
+#define DEBUG_DRV
 
 #define VGA_VRAM        (KERN_BASE_VIR_ADDR + 0x000B8000)
 
@@ -121,6 +120,7 @@ static struct {
 
 static void screen_out_pixel16(int x, int y, uint32_t color)
 {
+	//warnprint("screen_out_pixel16-color::0x%x\n",color);
     uint32_t  r, g, b;
     b = color&0xF8;
     g = color&0xFC00;
@@ -131,6 +131,7 @@ static void screen_out_pixel16(int x, int y, uint32_t color)
 
 static void screen_out_pixel24(int x, int y, uint32_t color)
 {
+	warnprint("screen_out_pixel24-color::0x%x\n",color);
     *((uga.addr) + 3*((SCREEN_WIDTH) * y + x) + 0) = color & 0xFF;
     *((uga.addr) + 3*((SCREEN_WIDTH) * y + x) + 1) = (color & 0xFF00) >> 8;
     *((uga.addr) + 3*((SCREEN_WIDTH) * y + x) + 2) = (color & 0xFF0000) >> 16;
@@ -138,11 +139,13 @@ static void screen_out_pixel24(int x, int y, uint32_t color)
 
 static void screen_out_pixel32(int x, int y, uint32_t color)
 {
+	warnprint("screen_out_pixel32-color::0x%x\n",color);
     *((unsigned int*)((uga.addr) + 4 * ((SCREEN_WIDTH) * y + x))) = (unsigned int)color;
 }
 
 static void uga_outchar(unsigned short x, unsigned short y, unsigned char ch, uint32_t color) {
-    if (uga.enable) {
+	warnprint("uga_outchar--ch::0x%x-color::0x%x-uga.out_pixel::0x%x\n",ch,color,uga.out_pixel);
+    if (uga.enable) { //uga.enable
         if (uga.out_pixel == NULL)
             return;
         unsigned int fx = x * UGA_FONT_W;
@@ -156,6 +159,7 @@ static void uga_outchar(unsigned short x, unsigned short y, unsigned char ch, ui
             for (; fx < fex; ++fx) {
                 if (uga.fonts[fi] >> (fex - fx) & 1) {
                     uga.out_pixel(fx, fy, color);
+					warnprint("(uga.fonts[fi] >> (fex - fx) & 1)\n");
                 } else {
                     uga.out_pixel(fx, fy, uga.clear);
                 }
@@ -472,6 +476,7 @@ static void vga_outchar(device_extension_t *ext, unsigned char ch)
 {
     unsigned char *vram = (unsigned char *)(V_MEM_BASE +
         (ext->original_addr + ext->y * SCREEN_WIDTH + ext->x) * 2);
+	warnprint("V_MEM_BASE::0x%x-SCREEN_WIDTH::0x%x-ext->originalAddr-::0x%x-ext->y::0x%x-ext->x::0x%x\n",V_MEM_BASE,SCREEN_WIDTH,ext->original_addr,ext->y,ext->x);
 
     switch (ch) {
     case '\n':
@@ -680,6 +685,7 @@ iostatus_t console_write(device_object_t *device, io_request_t *ioreq)
     return IO_SUCCESS;
 }
 
+
 iostatus_t console_devctl(device_object_t *device, io_request_t *ioreq)
 {
     unsigned int ctlcode = ioreq->parame.devctl.code;
@@ -747,7 +753,8 @@ static void device_be_notify(driver_object_t *driver, int tag, void *param) {
         uga.fonts = cpio_get_file(
             module_info_find(KERN_BASE_VIR_ADDR, MODULE_INITRD), "boot/uga.img", &file_sz);
         if (uga.fonts == NULL || file_sz != 32 * UGA_FONT_W * UGA_FONT_H * sizeof(char)) {
-            uga.fonts = NULL;
+			errprint("device_be_notify-0-uga.fonts::0x%x,file_sz::0x%x-::0x%x\n",uga.fonts,file_sz,32 * UGA_FONT_W * UGA_FONT_H * sizeof(char));
+			uga.fonts = NULL;
             return;
         }
 
@@ -758,8 +765,10 @@ static void device_be_notify(driver_object_t *driver, int tag, void *param) {
 
         // memset(uga.addr, 0x5a, 0x10000);
         uga.enable = 1;
+		errprint("device_be_notify-1-uga.enable::0x%x",uga.enable);
     } else if (tag == 1 && uga.fonts != NULL) {
         uga.enable = *(unsigned char*)param;
+		errprint("device_be_notify-2-uga.enable::0x%x",uga.enable);
     }
 }
 #endif /* KERN_VBE_MODE */
@@ -791,16 +800,18 @@ static iostatus_t console_enter(driver_object_t *driver)
         string_new(&devext->device_name, devname, DEVICE_NAME_LEN);
         devext->device_object = devobj;
 
-#ifdef DEBUG_DRV
-        keprint(PRINT_DEBUG "console_enter: device extension: device name=%s object=%x\n",
-            devext->device_name.text, devext->device_object);
-#endif /* DEBUG_DRV */
+
 
         // 设置屏幕大小
         devext->screen_size = SCREEN_SIZE;
 
         // 控制台起始地址
         devext->original_addr = id * SCREEN_SIZE;
+		
+#ifdef DEBUG_DRV
+		keprint(PRINT_DEBUG "console_enter: device extension: device name=%s object=0x%x original_addr=0x%x\n",
+			devext->device_name.text, devext->device_object,devext->original_addr);
+#endif /* DEBUG_DRV */
         
         /* 设置默认颜色 */
         devext->color = VGA_COLOR_DEFAULT;

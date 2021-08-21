@@ -9,7 +9,7 @@
  */
 
 #include <cpio.h>
-
+#include <xbook/debug.h>
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
@@ -167,8 +167,10 @@ void *cpio_get_file(void *archive, const char *name, unsigned long *size)
 
         int error = cpio_parse_header(header, &current_filename,
                 size, &result, &next);
+		errprint("cpio_get_file-header::0x%x-error::0x%x\n",header,error);
         if (error)
             return NULL;
+		errprint("cpio_get_file-current_filename::%s-name::%s\n",current_filename,name);
         if (cpio_strncmp(current_filename, name, -1) == 0)
             return result;
         header = next;

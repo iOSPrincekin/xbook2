@@ -5,8 +5,8 @@ BUILD_DIR   = ../../src
 OS_NAME    ?= XBook
 OS_ISO_NAME = $(OS_NAME).iso
 
-#MKISOFS    = mkisofs
-MKISOFS     = genisoimage
+MKISOFS    = mkisofs
+#MKISOFS     = genisoimage
 
 BOOT_DIR      = boot
 GRUB_DIR      = $(BOOT_DIR)/grub

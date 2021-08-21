@@ -42,7 +42,7 @@ e1000: enabled=1,ioaddr=0x300, irq=3, mac=8c:85:90:15:8e:cb, ethmod=slirp, ethde
 #dev=/dev/tty9   /dev/ptyp0 /dev/stdout
 #com1: enabled=1, mode=file, dev="develop/bochs/output.txt"
 #com1: enabled=1, mode=mouse
-com1:enabled=1, mode=term, dev=/dev/ttys009
+com1:enabled=1, mode=term, dev=/dev/ttys003
 #log:/dev/pts/1
 
 #keyboard: enabled=1, map=$bxshare/keymaps/x11-pc-us.map

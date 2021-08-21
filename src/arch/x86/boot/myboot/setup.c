@@ -1,6 +1,5 @@
 #include "lib.h"
 #include "elf32.h"
-
 #define DEBUG_SETUP
 
 /* 内核文件被加载到物理内存的地址 */

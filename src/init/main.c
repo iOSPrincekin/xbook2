@@ -19,13 +19,16 @@
 #include <xbook/mutexqueue.h>
 #include <xbook/account.h>
 #include <xbook/portcomm.h>
+#include <arch/module.h>
 #ifdef CONFIG_NET
 #include <xbook/net.h>
 #endif
 
 int kernel_main(void)
 {
-    keprint(PRINT_INFO "welcome to xbook kernel.\n");
+	module_info_init();
+	keprint(PRINT_INFO "module_info_init().\n");
+    keprint(PRINT_INFO "welcome to xbook kernel!!!!.\n");
     mem_caches_init();
     vir_mem_init();
     irq_description_init();
