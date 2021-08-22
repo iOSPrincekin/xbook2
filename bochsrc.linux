@@ -13,15 +13,18 @@ megs: 512
 #cpu: count=1, ips=10000000
 
 # what disk images will be used 
-floppya: 1_44=develop/image/a.img, status=inserted
+#floppya: 1_44=develop/image/a.img, status=inserted
 
 # hard disk
-ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
-ata0-master: type=disk, path="develop/image/c.img", cylinders=20, heads=16, spt=63
-ata0-slave: type=disk, path="develop/image/d.img", cylinders=20, heads=16, spt=63
+#ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+#ata0-master: type=disk, path="develop/image/c.img", cylinders=20, heads=16, spt=63
+#ata0-slave: type=disk, path="develop/image/d.img", cylinders=20, heads=16, spt=63
 
 # choose the boot disk.
-boot: a
+#boot: a
+
+ata0-master:     type=cdrom, path=./src/XBook.iso, status=inserted
+boot:            cdrom
 
 # where do we send log messages?
 #log: develop/bochs/bochsout.txt
