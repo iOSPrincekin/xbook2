@@ -86,7 +86,7 @@ EFI_BOOT_MODE ?= n
 QEMU_FAT_FS ?= n
 
 # has net module? (y/n)
-KERN_MODULE_NET	?= n
+KERN_MODULE_NET	?= y
 export KERN_MODULE_NET
 
 # is livecd mode? (y/n)
