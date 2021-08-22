@@ -1,4 +1,4 @@
-#ifeq ($(KERN_VBE_MODE),y)
+ifeq ($(KERN_VBE_MODE),y)
 	X_CFLAGS += -DKERN_VBE_MODE
-#endif
+endif
 SRC	+= vbe.c

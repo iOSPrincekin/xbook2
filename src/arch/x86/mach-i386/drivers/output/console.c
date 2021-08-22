@@ -165,7 +165,6 @@ static void uga_outchar(unsigned short x, unsigned short y, unsigned char ch, ui
             for (; fx < fex; ++fx) {
                 if (uga.fonts[fi] >> (fex - fx) & 1) {
                     uga.out_pixel(fx, fy, color);
-					warnprint("(uga.fonts[fi] >> (fex - fx) & 1)\n");
                 } else {
                     uga.out_pixel(fx, fy, uga.clear);
                 }

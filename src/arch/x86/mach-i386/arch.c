@@ -7,12 +7,11 @@
 #include <arch/pci.h>
 #include <arch/cpu.h>
 #include <xbook/debug.h>
-#include <arch/module.h>
+
 int arch_init()
 {	
     /* the first thing is to init debug! */
 	arch_debug_init();
-	module_info_init();
     segment_descriptor_init();
     gate_descriptor_init();
     tss_init();
