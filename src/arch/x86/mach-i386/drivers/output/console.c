@@ -21,7 +21,7 @@
 
 #define MAX_CONSOLE_NR  8   /* 8个控制台 */
 
-#define DEBUG_DRV
+//#define DEBUG_DRV
 
 #define VGA_VRAM        (KERN_BASE_VIR_ADDR + 0x000B8000)
 
@@ -131,7 +131,9 @@ static void screen_out_pixel16(int x, int y, uint32_t color)
 
 static void screen_out_pixel24(int x, int y, uint32_t color)
 {
+#ifdef DEBUG_DRV
 	warnprint("screen_out_pixel24-color::0x%x\n",color);
+#endif
     *((uga.addr) + 3*((SCREEN_WIDTH) * y + x) + 0) = color & 0xFF;
     *((uga.addr) + 3*((SCREEN_WIDTH) * y + x) + 1) = (color & 0xFF00) >> 8;
     *((uga.addr) + 3*((SCREEN_WIDTH) * y + x) + 2) = (color & 0xFF0000) >> 16;
@@ -139,12 +141,16 @@ static void screen_out_pixel24(int x, int y, uint32_t color)
 
 static void screen_out_pixel32(int x, int y, uint32_t color)
 {
+#ifdef DEBUG_DRV
 	warnprint("screen_out_pixel32-color::0x%x\n",color);
+#endif
     *((unsigned int*)((uga.addr) + 4 * ((SCREEN_WIDTH) * y + x))) = (unsigned int)color;
 }
 
 static void uga_outchar(unsigned short x, unsigned short y, unsigned char ch, uint32_t color) {
+#ifdef DEBUG_DRV
 	warnprint("uga_outchar--ch::0x%x-color::0x%x-uga.out_pixel::0x%x\n",ch,color,uga.out_pixel);
+#endif
     if (uga.enable) { //uga.enable
         if (uga.out_pixel == NULL)
             return;
@@ -476,8 +482,9 @@ static void vga_outchar(device_extension_t *ext, unsigned char ch)
 {
     unsigned char *vram = (unsigned char *)(V_MEM_BASE +
         (ext->original_addr + ext->y * SCREEN_WIDTH + ext->x) * 2);
+#ifdef DEBUG_DRV
 	warnprint("V_MEM_BASE::0x%x-SCREEN_WIDTH::0x%x-ext->originalAddr-::0x%x-ext->y::0x%x-ext->x::0x%x\n",V_MEM_BASE,SCREEN_WIDTH,ext->original_addr,ext->y,ext->x);
-
+#endif
     switch (ch) {
     case '\n':
         // 如果是回车，那还是要把回车写进去
