@@ -22,10 +22,12 @@
 #ifdef CONFIG_NET
 #include <xbook/net.h>
 #endif
-
+void test_kernel();
 int kernel_main(void)
 {
     keprint(PRINT_INFO "welcome to xbook kernel.\n");
+	test_kernel();
+	keprint(PRINT_INFO "welcome to xbook xxxxxxxxx.\n");
     mem_caches_init();
     vir_mem_init();
     irq_description_init();
